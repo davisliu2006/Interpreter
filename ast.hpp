@@ -36,19 +36,11 @@ namespace compiler {
             }
         };
         struct expr: simple_stmt {
+            // inferred fields
             string ret_type;
 
             virtual string to_string() {
                 return "expr (unknown)";
-            }
-        };
-        struct var: expr {
-            string name;
-
-            var(string name): name(name) {}
-
-            virtual string to_string() {
-                return "var "+name;
             }
         };
         struct literal: expr {
@@ -104,6 +96,18 @@ namespace compiler {
             
             virtual string to_string() {
                 return "var_def "+type+" "+var+" = (\n"+(expression? expression->to_string() : "NULL")+"\n)";
+            }
+        };
+        struct var_ref: expr {
+            string name;
+
+            var_ref(string name): name(name) {}       
+            
+            // inferred fields
+            var_decl* resolve = NULL;
+
+            virtual string to_string() {
+                return "var "+name;
             }
         };
         struct asn: expr {
@@ -180,6 +184,9 @@ namespace compiler {
             virtual ~f_call() {
                 for (expr* arg: args) {delete arg;}
             }
+
+            // inferred fields
+            f_def* resolve = NULL;
 
             virtual string to_string() {
                 string val = "f_call " + func + "(\n";

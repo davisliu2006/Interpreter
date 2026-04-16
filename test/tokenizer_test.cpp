@@ -1,3 +1,4 @@
+#include <cassert>
 #include <iomanip>
 #include <iostream>
 
@@ -47,30 +48,72 @@ vector<Test> tests = {
         for (const auto& [type, token]: tokens) {
             cout << "    " << type << ' ' << token << '\n';
         }
+        for (int i = 0; i < tokens.size(); i++) {
+            assert(tokens[i].type != sym_t::ID);
+        }
     }),
     Test("if", []() {
         auto tokens = tokenizer::tokenize("if (x == 0) {y = 1;}");
         for (const auto& [type, token]: tokens) {
             cout << "    " << type << ' ' << token << '\n';
         }
+        assert(tokens.size() == 12);
+        assert(tokens[0].type == sym_t::IF);
+        assert(tokens[1].type == sym_t::ROUND_LEFT);
+        assert(tokens[2].type == sym_t::ID);
+        assert(tokens[3].type == sym_t::OPERATOR);
+        assert(tokens[4].type == sym_t::INT);
+        assert(tokens[5].type == sym_t::ROUND_RIGHT);
+        assert(tokens[6].type == sym_t::CURLY_LEFT);
+        assert(tokens[7].type == sym_t::ID);
+        assert(tokens[8].type == sym_t::OPERATOR);
+        assert(tokens[9].type == sym_t::INT);
+        assert(tokens[10].type == sym_t::SEMI);
+        assert(tokens[11].type == sym_t::CURLY_RIGHT);
     }),
     Test("for", []() {
         auto tokens = tokenizer::tokenize("for (int i = 0; i < 10; i++) {y = 1;}");
         for (const auto& [type, token]: tokens) {
             cout << "    " << type << ' ' << token << '\n';
         }
+        assert(tokens[0].type == sym_t::FOR);
+        assert(tokens[1].type == sym_t::ROUND_LEFT);
+        assert(tokens[2].type == sym_t::TYPE);
+        assert(tokens[3].type == sym_t::ID);
+        assert(tokens[4].type == sym_t::OPERATOR);
+        assert(tokens[5].type == sym_t::INT);
+        assert(tokens[6].type == sym_t::SEMI);
+        assert(tokens[7].type == sym_t::ID);
+        assert(tokens[8].type == sym_t::OPERATOR);
+        assert(tokens[9].type == sym_t::INT);
+        assert(tokens[10].type == sym_t::SEMI);
+        assert(tokens[11].type == sym_t::ID);
+        assert(tokens[12].type == sym_t::OPERATOR);
+        assert(tokens[13].type == sym_t::ROUND_RIGHT);
     }),
     Test("while", []() {
         auto tokens = tokenizer::tokenize("while (x == 0) {y = 1;}");
         for (const auto& [type, token]: tokens) {
             cout << "    " << type << ' ' << token << '\n';
         }
+        assert(tokens[0].type == sym_t::WHILE);
+        assert(tokens[1].type == sym_t::ROUND_LEFT);
+        assert(tokens[2].type == sym_t::ID);
+        assert(tokens[3].type == sym_t::OPERATOR);
+        assert(tokens[4].type == sym_t::INT);
+        assert(tokens[5].type == sym_t::ROUND_RIGHT);
     }),
     Test("strings", []() {
         auto tokens = tokenizer::tokenize("string s = \"hi\"+'\\n';");
         for (const auto& [type, token]: tokens) {
             cout << "    " << type << ' ' << token << '\n';
         }
+        assert(tokens[1].type == sym_t::ID);
+        assert(tokens[2].type == sym_t::OPERATOR);
+        assert(tokens[3].type == sym_t::STRING && tokens[3].text == "\"hi\"");
+        assert(tokens[4].type == sym_t::OPERATOR);
+        assert(tokens[5].type == sym_t::CHAR && tokens[5].text == "'\\n'");
+        assert(tokens[6].type == sym_t::SEMI);
     })
 };
 

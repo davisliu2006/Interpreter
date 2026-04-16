@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ast.hpp"
+#include "symbols.hpp"
+#include <climits>
 
 namespace compiler {
     struct Parser {
@@ -20,57 +22,61 @@ namespace compiler {
 
         Parser(vector<Token> tokens): tokens(tokens), TOK_SIZE(tokens.size()) {
             closing_bracket = vector<int>(TOK_SIZE, INT_MAX);
-            next_semicolon = vector<int>(TOK_SIZE+1, INT_MAX);
-            next_comma = vector<int>(TOK_SIZE+1, INT_MAX);
-            // bracket pairs
-            vector<pair<sym_t,int>> stk;
-            for (int i = 0; i < TOK_SIZE; i++) {
-                if (is_opening_bracket(tokens[i].type)) {
-                    stk.push_back({tokens[i].type, i});
-                } else if (is_closing_bracket(tokens[i].type)) {
-                    if (stk.empty()) {
-                        throw std::runtime_error("Unmatched right bracket");
+            next_semicolon = vector<int>(TOK_SIZE, INT_MAX);
+            next_comma = vector<int>(TOK_SIZE, INT_MAX);
+            // closing bracket (pairs first)
+            {
+                vector<pair<sym_t,int>> stk;
+                for (int i = 0; i < TOK_SIZE; i++) {
+                    if (is_opening_bracket(tokens[i].type)) {
+                        stk.push_back({tokens[i].type, i});
+                    } else if (is_closing_bracket(tokens[i].type)) {
+                        if (stk.empty()) {
+                            throw std::runtime_error("Unmatched right bracket");
+                        }
+                        int i0 = stk.back().second;
+                        if (tokens[i0].type != bracket_pair_type(tokens[i].type)) {
+                            throw std::runtime_error("Unmatched right bracket");
+                        }
+                        closing_bracket[i0] = i;
+                        closing_bracket[i] = i;
+                        stk.pop_back();
                     }
-                    int i0 = stk.back().second;
-                    if (tokens[i0].type != bracket_pair_type(tokens[i].type)) {
-                        throw std::runtime_error("Unmatched right bracket");
-                    }
-                    closing_bracket[i0] = i;
-                    closing_bracket[i] = i;
-                    stk.pop_back();
+                }
+                if (!stk.empty()) {
+                    throw std::runtime_error("Unmatched left bracket");
                 }
             }
-            if (!stk.empty()) {
-                throw std::runtime_error("Unmatched left bracket");
-            }
-            for (int i = 1; i < TOK_SIZE; i++) {
-                if (closing_bracket[i] == INT_MAX && !is_closing_bracket(tokens[i-1].type)) {
-                    closing_bracket[i] = closing_bracket[i-1];
+            // closing bracket (fill in gaps)
+            {
+                vector<int> stk;
+                for (int i = 0; i < TOK_SIZE; i++) {
+                    if (is_opening_bracket(tokens[i].type)) {
+                        stk.push_back(i);
+                    } else if (is_closing_bracket(tokens[i].type)) {
+                        stk.pop_back();
+                    } else if (!stk.empty()) {
+                        closing_bracket[i] = closing_bracket[stk.back()];
+                    }
                 }
             }
             // next semicolon and comma
-            int next_opening_bracket = INT_MAX;
-            for (int i = TOK_SIZE-1; i >= 0; i--) {
-                if (is_opening_bracket(tokens[i].type)) {
-                    next_opening_bracket = i;
-                } else if (is_closing_bracket(tokens[i].type)) {
-                    next_opening_bracket = INT_MAX;
-                }
-                if (tokens[i].type == sym_t::SEMI) {
-                    next_semicolon[i] = i;
-                } else if (next_opening_bracket != INT_MAX) {
-                    int cb = closing_bracket[next_opening_bracket];
-                    next_semicolon[i] = next_semicolon[cb];
-                } else if (i < TOK_SIZE-1) {
-                    next_semicolon[i] = next_semicolon[i+1];
-                }
-                if (tokens[i].type == sym_t::COMMA) {
-                    next_comma[i] = i;
-                } else if (next_opening_bracket != INT_MAX) {
-                    int cb = closing_bracket[next_opening_bracket];
-                    next_comma[i] = next_comma[cb];
-                } else if (i < TOK_SIZE-1) {
-                    next_comma[i] = next_comma[i+1];
+            {
+                vector<pair<int,int>> stk;
+                stk.push_back({INT_MAX, INT_MAX});
+                for (int i = TOK_SIZE-1; i >= 0; i--) {
+                    if (is_closing_bracket(tokens[i].type)) {
+                        stk.push_back({INT_MAX, INT_MAX});
+                    } else if (tokens[i].type == sym_t::SEMI) {
+                        stk.back().first = i;
+                    } else if (tokens[i].type == sym_t::COMMA) {
+                        stk.back().second = i;
+                    }
+                    next_semicolon[i] = stk.back().first;
+                    next_comma[i] = stk.back().second;
+                    if (is_opening_bracket(tokens[i].type)) {
+                        stk.pop_back();
+                    } 
                 }
             }
         }
@@ -121,7 +127,7 @@ namespace compiler {
             }
             if (begin+1 == end) {
                 if (tokens[begin].type == sym_t::ID) {
-                    return new ast::var(tokens[begin].text);
+                    return new ast::var_ref(tokens[begin].text);
                 } else if (is_literal(tokens[begin].type)) {
                     return new ast::literal(tokens[begin].type, tokens[begin].text);
                 } else {
