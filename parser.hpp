@@ -49,20 +49,27 @@ namespace compiler {
                 }
             }
             // next semicolon and comma
-            if (tokens[TOK_SIZE-1].type == sym_t::SEMI) {
-                next_semicolon[TOK_SIZE] = TOK_SIZE-1;
-            } else if (tokens[TOK_SIZE-1].type == sym_t::COMMA) {
-                next_comma[TOK_SIZE] = TOK_SIZE-1;
-            }
+            int next_opening_bracket = INT_MAX;
             for (int i = TOK_SIZE-1; i >= 0; i--) {
+                if (is_opening_bracket(tokens[i].type)) {
+                    next_opening_bracket = i;
+                } else if (is_closing_bracket(tokens[i].type)) {
+                    next_opening_bracket = INT_MAX;
+                }
                 if (tokens[i].type == sym_t::SEMI) {
                     next_semicolon[i] = i;
-                } else {
+                } else if (next_opening_bracket != INT_MAX) {
+                    int cb = closing_bracket[next_opening_bracket];
+                    next_semicolon[i] = next_semicolon[cb];
+                } else if (i < TOK_SIZE-1) {
                     next_semicolon[i] = next_semicolon[i+1];
                 }
                 if (tokens[i].type == sym_t::COMMA) {
                     next_comma[i] = i;
-                } else {
+                } else if (next_opening_bracket != INT_MAX) {
+                    int cb = closing_bracket[next_opening_bracket];
+                    next_comma[i] = next_comma[cb];
+                } else if (i < TOK_SIZE-1) {
                     next_comma[i] = next_comma[i+1];
                 }
             }
