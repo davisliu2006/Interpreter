@@ -19,4 +19,27 @@ namespace compiler {
     inline bool in_range(type x, type l, type r) {
         return l <= x && x <= r;
     }
+
+    inline bool is_opening_bracket(char c) {
+        return c == '(' || c == '[' || c == '{';
+    }
+    inline bool is_closing_bracket(char c) {
+        return c == ')' || c == ']' || c == '}';
+    }
+
+    inline string format_string(const string& str) {
+        string val;
+        int nesting = 0;
+        for (int i = 0; i < str.size(); i++) {
+            char c = str[i];
+            char c0 = i > 0? str[i-1] : '\0';
+            if (is_opening_bracket(c)) {nesting++;}
+            else if (is_closing_bracket(c)) {nesting--;}
+            if (c0 == '\n') {
+                for (int i = 0; i < nesting; i++) {val += "  ";}
+            }
+            val += c;
+        }
+        return val;
+    }
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base.hpp"
-#include "tokenizer.hpp"
+#include "symbols.hpp"
 
 namespace compiler {
     struct AST {
@@ -18,6 +18,9 @@ namespace compiler {
 
             virtual string to_string() {
                 return "ASTNode (unknown)";
+            }
+            virtual string to_formatted_string() {
+                return format_string(to_string());
             }
         };
 
@@ -37,6 +40,25 @@ namespace compiler {
 
             virtual string to_string() {
                 return "expr (unknown)";
+            }
+        };
+        struct var: expr {
+            string name;
+
+            var(string name): name(name) {}
+
+            virtual string to_string() {
+                return "var "+name;
+            }
+        };
+        struct literal: expr {
+            sym_t type;
+            string value;
+
+            literal(sym_t type, string value): value(value) {}
+
+            virtual string to_string() {
+                return "literal "+value;
             }
         };
 
@@ -97,6 +119,34 @@ namespace compiler {
                 return "asn "+var+" = (\n"+(expression? expression->to_string() : "NULL")+"\n)";
             }
         };
+        struct op_asn: expr {
+            string var;
+            string op;
+            expr* expression;
+
+            op_asn(string var, string op, expr* expression):
+            var(var), op(op), expression(expression) {}
+            virtual ~op_asn() {}
+
+            virtual string to_string() {
+                return "op_asn "+var+" "+op+"= (\n"+(expression? expression->to_string() : "NULL")+"\n)";
+            }
+        };
+        struct op_bin: expr {
+            string op;
+            expr* lhs;
+            expr* rhs;
+
+            op_bin(string op, expr* lhs, expr* rhs): op(op), lhs(lhs), rhs(rhs) {}
+            virtual ~op_bin() {
+                delete lhs;
+                delete rhs;
+            }
+
+            virtual string to_string() {
+                return "op_bin " + op + " (\n" + (lhs? lhs->to_string() : "NULL") + "\n) (\n" + (rhs? rhs->to_string() : "NULL") + "\n)";
+            }
+        };
 
         // functions
         struct f_def: stmt {
@@ -105,8 +155,8 @@ namespace compiler {
             vector<var_decl*> params;
             block* body;
 
-            f_def(string type, vector<var_decl*> params, block* body):
-            type(type), params(params), body(body) {}
+            f_def(string type, string name, vector<var_decl*> params, block* body):
+            type(type), name(name), params(params), body(body) {}
             virtual ~f_def() {
                 for (var_decl* param: params) {delete param;}
                 delete body;

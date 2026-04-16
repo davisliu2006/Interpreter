@@ -17,6 +17,29 @@ namespace compiler {
                     substr++;
                 }
                 return {sym_t::WS, text};
+            } else if (*substr == '"') { // string literal
+                string text = "\"";
+                substr++;
+                bool escape = false;
+                while (*substr && (*substr != '"' || escape)) {
+                    text += *substr;
+                    escape = (*substr == '\\');
+                    substr++;
+                }
+                if (!substr) {return {sym_t::INVALID, text};}
+                text += '\"';
+                return {sym_t::STRING, text};
+            } else if (*substr == '\'') { // char literal
+                string text = "\'";
+                substr++;
+                if (*substr == '\\') {
+                    text += *substr; substr++;
+                }
+                if (!*substr) {return {sym_t::INVALID, text};}
+                text += *substr; substr++;
+                if (*substr != '\'') {return {sym_t::INVALID, text};}
+                text += '\'';
+                return {sym_t::CHAR, text};
             } else if (char_type(*substr) == sym_t::OPERATOR) {
                 if (substr[0] == '/' && substr[1] == '/') { // comment
                     string text = "//";

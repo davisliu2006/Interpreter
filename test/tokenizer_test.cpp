@@ -65,6 +65,12 @@ vector<Test> tests = {
         for (const auto& [type, token]: tokens) {
             cout << "    " << type << ' ' << token << '\n';
         }
+    }),
+    Test("strings", []() {
+        auto tokens = tokenizer::tokenize("string s = \"hi\"+'\\n';");
+        for (const auto& [type, token]: tokens) {
+            cout << "    " << type << ' ' << token << '\n';
+        }
     })
 };
 

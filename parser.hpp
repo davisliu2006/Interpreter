@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ast.hpp"
-#include "tokenizer.hpp"
 
 namespace compiler {
     struct Parser {
@@ -26,40 +25,14 @@ namespace compiler {
             // bracket pairs
             vector<pair<sym_t,int>> stk;
             for (int i = 0; i < TOK_SIZE; i++) {
-                if (tokens[i].type == sym_t::ROUND_LEFT) {
-                    stk.push_back({sym_t::ROUND_LEFT, i});
-                } else if (tokens[i].type == sym_t::SQUARE_LEFT) {
-                    stk.push_back({sym_t::SQUARE_LEFT, i});
-                } else if (tokens[i].type == sym_t::CURLY_LEFT) {
-                    stk.push_back({sym_t::CURLY_LEFT, i});
-                } else if (tokens[i].type == sym_t::ROUND_RIGHT) {
+                if (is_opening_bracket(tokens[i].type)) {
+                    stk.push_back({tokens[i].type, i});
+                } else if (is_closing_bracket(tokens[i].type)) {
                     if (stk.empty()) {
                         throw std::runtime_error("Unmatched right bracket");
                     }
                     int i0 = stk.back().second;
-                    if (tokens[i0].type != sym_t::ROUND_LEFT) {
-                        throw std::runtime_error("Unmatched right bracket");
-                    }
-                    closing_bracket[i0] = i;
-                    closing_bracket[i] = i;
-                    stk.pop_back();
-                } else if (tokens[i].type == sym_t::SQUARE_RIGHT) {
-                    if (stk.empty()) {
-                        throw std::runtime_error("Unmatched right bracket");
-                    }
-                    int i0 = stk.back().second;
-                    if (tokens[i0].type != sym_t::SQUARE_LEFT) {
-                        throw std::runtime_error("Unmatched right bracket");
-                    }
-                    closing_bracket[i0] = i;
-                    closing_bracket[i] = i;
-                    stk.pop_back();
-                } else if (tokens[i].type == sym_t::CURLY_RIGHT) {
-                    if (stk.empty()) {
-                        throw std::runtime_error("Unmatched right bracket");
-                    }
-                    int i0 = stk.back().second;
-                    if (tokens[i0].type != sym_t::CURLY_LEFT) {
+                    if (tokens[i0].type != bracket_pair_type(tokens[i].type)) {
                         throw std::runtime_error("Unmatched right bracket");
                     }
                     closing_bracket[i0] = i;
@@ -71,10 +44,7 @@ namespace compiler {
                 throw std::runtime_error("Unmatched left bracket");
             }
             for (int i = 1; i < TOK_SIZE; i++) {
-                if (closing_bracket[i] == INT_MAX
-                && tokens[i-1].type != sym_t::ROUND_RIGHT
-                && tokens[i-1].type != sym_t::SQUARE_RIGHT
-                && tokens[i-1].type != sym_t::CURLY_RIGHT) {
+                if (closing_bracket[i] == INT_MAX && !is_closing_bracket(tokens[i-1].type)) {
                     closing_bracket[i] = closing_bracket[i-1];
                 }
             }
@@ -134,27 +104,62 @@ namespace compiler {
                 tokens[begin].type = sym_t::TYPE;
                 return parse_var_decl(begin, end);
             } else {
-                return NULL; // TODO: handle expr
-                cout << "Invalid statement token: "
-                    << tokens[begin].type << ' ' << tokens[begin].text << '\n';
-                throw std::runtime_error("Invalid statement");
+                return parse_expr(begin, end);
             }
         }
 
         ast::expr* parse_expr(int begin, int end) {
-            return NULL;
+            if (begin >= end) {
+                throw std::runtime_error("Invalid expression");
+            }
+            if (begin+1 == end) {
+                if (tokens[begin].type == sym_t::ID) {
+                    return new ast::var(tokens[begin].text);
+                } else if (is_literal(tokens[begin].type)) {
+                    return new ast::literal(tokens[begin].type, tokens[begin].text);
+                } else {
+                    cout << "Invalid expression token: "
+                        << tokens[begin].type << ' ' << tokens[begin].text << '\n';
+                    throw std::runtime_error("Invalid expression");
+                }
+            }
+            if (tokens[begin].type == sym_t::ROUND_LEFT
+            && closing_bracket[begin] == end-1) { // (expr)
+                return parse_expr(begin+1, end-1);
+            }
+            int op_pos = -1;
+            int op_prec = INT_MIN;
+            for (int i = begin; i < end; i++) {
+                if (is_opening_bracket(tokens[i].type)) {
+                    i = closing_bracket[i];
+                } else if (tokens[i].type == sym_t::OPERATOR) {
+                    int prec = operator_precedence.find(tokens[i].text.c_str(), tokens[i].text.size())->val;
+                    if (prec > op_prec) {
+                        op_prec = prec;
+                        op_pos = i;
+                    }
+                }
+            }
+            if (op_pos == -1) {
+                throw std::runtime_error("Invalid expression, no operator");
+            } else {
+                return parse_expr_helper(begin, op_pos, end);
+            }
         }
 
         ast::block* parse_block(int begin, int end) {
             return NULL;
         }
 
-        ast::var_decl* parse_var_decl(int begin, int end) {
+        ast::var_decl* parse_var_decl(int begin, int end) { // TYPE ID
             if (tokens[begin].type != sym_t::TYPE) {
                 throw std::runtime_error("Invalid variable declaration");
             }
             if (tokens[begin+1].type != sym_t::ID) {
                 throw std::runtime_error("Invalid variable declaration");
+            }
+            if (tokens[begin+2].type == sym_t::OPERATOR && tokens[begin+2].text == "=") { // TYPE ID =
+                return parse_var_def(begin, end);
             }
             string type = tokens[begin].text;
             string var = tokens[begin+1].text;
@@ -162,7 +167,10 @@ namespace compiler {
             return new ast::var_decl(type, var);
         }
 
-        ast::var_def* parse_var_def(int begin, int end) {
+        ast::var_def* parse_var_def(int begin, int end) { // TYPE ID = expr
+            string type = tokens[begin].text;
+            string var = tokens[begin+1].text;
+            ast::expr* expression = parse_expr(begin+3, end);
             return NULL;
         }
 
@@ -178,8 +186,53 @@ namespace compiler {
             return new ast::asn(var, expression);
         }
 
-        ast::f_def* parse_f_def(int begin, int end) {
+        ast::op_asn* parse_op_asn(int begin, int end) { // ID OP= expr
             return NULL;
+        }
+
+        ast::op_bin* parse_op_bin(int begin, int end) { // expr OP expr
+            return NULL;
+        }
+
+        ast::f_def* parse_f_def(int begin, int end) { // TYPE ID(params) {body}
+            if (tokens[begin].type != sym_t::TYPE) {
+                throw std::runtime_error("Invalid function definition");
+            }
+            if (tokens[begin+1].type != sym_t::ID) {
+                throw std::runtime_error("Invalid function definition");
+            }
+            if (tokens[begin+2].type != sym_t::ROUND_LEFT) {
+                throw std::runtime_error("Invalid function definition");
+            }
+            string ret_type = tokens[begin].text;
+            string name = tokens[begin+1].text;
+            vector<ast::var_decl*> params;
+            int param_begin = begin+3;
+            int param_end;
+            while (true) {
+                param_end = next_seperator(param_begin);
+                if (tokens[param_begin].type != sym_t::TYPE) {
+                    throw std::runtime_error("Invalid function definition");
+                }
+                if (tokens[param_begin+1].type != sym_t::ID) {
+                    throw std::runtime_error("Invalid function definition");
+                }
+                params.push_back(new ast::var_decl(
+                    tokens[param_begin].text,
+                    tokens[param_begin+1].text
+                ));
+                if (tokens[param_end].type == sym_t::ROUND_RIGHT) {
+                    break;
+                }
+            }
+            if (tokens[param_end+1].type != sym_t::CURLY_LEFT) {
+                throw std::runtime_error("Invalid function definition");
+            }
+            int block_begin = param_end+2;
+            int block_end = closing_bracket[block_begin];
+            ast::block* body = parse_block(block_begin, block_end);
+            curr = block_end+1;
+            return new ast::f_def(ret_type, name, params, body);
         }
 
         ast::f_call* parse_f_call(int begin, int end) { // ID(args)
@@ -297,6 +350,46 @@ namespace compiler {
             ast::block* body = parse_block(body_begin, body_end);
             curr = body_end+1;
             return new ast::c_while(cond, body);
+        }
+
+        ast::expr* parse_expr_helper(int begin, int op_pos, int end) {
+            // TODO: support and clean up expr cases
+            if (op_pos > begin && op_pos < end-1) {
+                ast::expr* lhs = parse_expr(begin, op_pos);
+                ast::expr* rhs = parse_expr(op_pos+1, end);
+                return new ast::op_bin(tokens[op_pos].text, lhs, rhs);
+            } else if (op_pos == begin) { 
+                if (tokens[op_pos].text == "++") {
+                    return new ast::op_asn(
+                        tokens[op_pos+1].text, "+",
+                        new ast::literal(sym_t::INT, "1")
+                    );
+                } else if (tokens[op_pos].text == "--") {
+                    return new ast::op_asn(
+                        tokens[op_pos+1].text, "-",
+                        new ast::literal(sym_t::INT, "1")
+                    );
+                } else {
+                    cout << "Invalid expression operator: " << tokens[op_pos].text << '\n';
+                    throw std::runtime_error("Invalid expression");
+                }
+            } else {
+                assert(op_pos == end-1);
+                if (tokens[op_pos].text == "++") {
+                    return new ast::op_asn(
+                        tokens[op_pos-1].text, "+",
+                        new ast::literal(sym_t::INT, "1")
+                    );
+                } else if (tokens[op_pos].text == "--") {
+                    return new ast::op_asn(
+                        tokens[op_pos-1].text, "-",
+                        new ast::literal(sym_t::INT, "1")
+                    );
+                } else {
+                    cout << "Invalid expression operator: " << tokens[op_pos].text << '\n';
+                    throw std::runtime_error("Invalid expression");
+                }
+            }
         }
     };
 }

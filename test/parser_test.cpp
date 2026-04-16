@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "test.hpp"
+#include "../tokenizer.hpp"
 #include "../parser.hpp"
 
 using namespace std;
@@ -26,7 +27,7 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("while (x == 0) {y = 1;}"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
-            cout << ast->to_string() << '\n';
+            cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
@@ -37,7 +38,7 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("for (int i = 0; i < 10; i++) {}"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
-            cout << ast->to_string() << '\n';
+            cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
@@ -48,7 +49,7 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("if (x == 0) {y = 1;}\nelse if (x == 1) {y = 2;}\nelse {y = 3;}"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
-            cout << ast->to_string() << '\n';
+            cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
@@ -59,7 +60,7 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("if (x == 0) {y = 1;}\nelse if (x == 1) {y = 2;}\nelse if (x == 2) {y = 3;}"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
-            cout << ast->to_string() << '\n';
+            cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
@@ -70,7 +71,7 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("f(1+2, 3, abc);"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
-            cout << ast->to_string() << '\n';
+            cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
@@ -81,7 +82,18 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("int xyz;"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
-            cout << ast->to_string() << '\n';
+            cout << ast->to_formatted_string() << '\n';
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
+    Test("expr_binary", []() {
+        try {
+            Parser parser(tokenizer::tokenize("(a+b)*(c+d)+f/(g-h)"));
+            auto* ast = parser.parse_stmt(0, parser.tokens.size());
+            cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
