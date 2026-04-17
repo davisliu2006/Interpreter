@@ -98,7 +98,7 @@ vector<Test> tests = {
     }),
     Test("f_call", []() {
         try {
-            Parser parser(tokenizer::tokenize("f(1+2, 3, abc);"));
+            Parser parser(tokenizer::tokenize("f(1+2, 3, abc)"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             delete ast;
@@ -109,7 +109,7 @@ vector<Test> tests = {
     }),
     Test("var_decl", []() {
         try {
-            Parser parser(tokenizer::tokenize("int xyz;"));
+            Parser parser(tokenizer::tokenize("int xyz"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             delete ast;
@@ -133,6 +133,17 @@ vector<Test> tests = {
         try {
             Parser parser(tokenizer::tokenize("f(a+b, c*d) + g(e)/f"));
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
+            cout << ast->to_formatted_string() << '\n';
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
+    Test("block_simple", []() {
+        try {
+            Parser parser(tokenizer::tokenize("int x = 1; int y = 2;"));
+            auto* ast = parser.parse_block(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             delete ast;
         } catch (const exception& e) {

@@ -83,11 +83,11 @@ namespace compiler {
 
         ast::stmt* parse_stmt(int begin, int end) {
             if (tokens[begin].type == sym_t::IF) { // IF
-                return parse_c_if(begin, end);
+                return parse_c_if(begin);
             } else if (tokens[begin].type == sym_t::FOR) { // FOR
-                return parse_c_for(begin, end);
+                return parse_c_for(begin);
             } else if (tokens[begin].type == sym_t::WHILE) { // WHILE
-                return parse_c_while(begin, end);
+                return parse_c_while(begin);
             } else if ((tokens[begin].type == sym_t::ID || tokens[begin].type == sym_t::TYPE)
             && tokens[begin+1].type == sym_t::ID && tokens[begin+2].type == sym_t::ROUND_RIGHT) { // TYPE ID(
                 /*
@@ -95,18 +95,20 @@ namespace compiler {
                 but we can treat it as a type and do typechecking later
                 */
                 tokens[begin].type = sym_t::TYPE;
-                return parse_f_def(begin, end);
+                return parse_f_def(begin);
             } else {
                 return parse_simple_stmt(begin, end);
             }
         }
 
         ast::simple_stmt* parse_simple_stmt(int begin, int end) {
+            curr = end;
             if (tokens[begin].type == sym_t::ID
             && tokens[begin+1].type == sym_t::OPERATOR && tokens[begin+1].text == "=") { // ID =
                 return parse_asn(begin, end);
             } else if (tokens[begin].type == sym_t::ID
-            && tokens[begin+1].type == sym_t::ROUND_LEFT) { // ID(
+            && tokens[begin+1].type == sym_t::ROUND_LEFT
+            && closing_bracket[begin+1] == end-1) { // ID(expr)
                 return parse_f_call(begin, end);
             } else if ((tokens[begin].type == sym_t::ID || tokens[begin].type == sym_t::TYPE)
             && tokens[begin+1].type == sym_t::ID) { // TYPE ID
@@ -124,21 +126,23 @@ namespace compiler {
         ast::expr* parse_expr(int begin, int end) {
             if (begin >= end) {
                 throw std::runtime_error("Invalid expression");
-            }
-            if (begin+1 == end) {
-                if (tokens[begin].type == sym_t::ID) {
+            } else if (begin+1 == end) { // single token
+                if (tokens[begin].type == sym_t::ID) { // ID
                     return new ast::var_ref(tokens[begin].text);
-                } else if (is_literal(tokens[begin].type)) {
+                } else if (is_literal(tokens[begin].type)) { // literal
                     return new ast::literal(tokens[begin].type, tokens[begin].text);
                 } else {
                     cout << "Invalid expression token: "
                         << tokens[begin].type << ' ' << tokens[begin].text << '\n';
                     throw std::runtime_error("Invalid expression");
                 }
-            }
-            if (tokens[begin].type == sym_t::ROUND_LEFT
+            } else if (tokens[begin].type == sym_t::ROUND_LEFT
             && closing_bracket[begin] == end-1) { // (expr)
                 return parse_expr(begin+1, end-1);
+            } else if (tokens[begin].type == sym_t::ID
+            && tokens[begin+1].type == sym_t::ROUND_LEFT
+            && closing_bracket[begin+1] == end-1) { // ID(expr)
+                return parse_f_call(begin, end);
             }
             int op_pos = -1;
             int op_prec = INT_MIN;
@@ -161,7 +165,16 @@ namespace compiler {
         }
 
         ast::block* parse_block(int begin, int end) {
-            return NULL;
+            vector<ast::stmt*> stmts;
+            int stmt_begin = begin;
+            while (stmt_begin < end) {
+                int stmt_end_max = std::min(end, next_semicolon[stmt_begin]);
+                cout << "stmt_begin: " << stmt_begin << ", stmt_end_max: " << stmt_end_max << '\n';
+                stmts.push_back(parse_stmt(stmt_begin, stmt_end_max));
+                if (tokens[curr].type == sym_t::SEMI) {curr++;}
+                stmt_begin = curr;
+            }
+            return new ast::block(stmts);
         }
 
         ast::var_decl* parse_var_decl(int begin, int end) { // TYPE ID
@@ -176,7 +189,6 @@ namespace compiler {
             }
             string type = tokens[begin].text;
             string var = tokens[begin+1].text;
-            curr = begin+2;
             return new ast::var_decl(type, var);
         }
 
@@ -184,7 +196,7 @@ namespace compiler {
             string type = tokens[begin].text;
             string var = tokens[begin+1].text;
             ast::expr* expression = parse_expr(begin+3, end);
-            return NULL;
+            return new ast::var_def(type, var, expression);
         }
 
         ast::asn* parse_asn(int begin, int end) { // ID = expr
@@ -199,15 +211,7 @@ namespace compiler {
             return new ast::asn(var, expression);
         }
 
-        ast::op_asn* parse_op_asn(int begin, int end) { // ID OP= expr
-            return NULL;
-        }
-
-        ast::op_bin* parse_op_bin(int begin, int end) { // expr OP expr
-            return NULL;
-        }
-
-        ast::f_def* parse_f_def(int begin, int end) { // TYPE ID(params) {body}
+        ast::f_def* parse_f_def(int begin) { // TYPE ID(params) {body}
             if (tokens[begin].type != sym_t::TYPE) {
                 throw std::runtime_error("Invalid function definition");
             }
@@ -267,11 +271,10 @@ namespace compiler {
                     break;
                 }
             }
-            curr = arg_end+1;
             return new ast::f_call(tokens[begin].text, args);
         }
 
-        ast::c_if* parse_c_if(int begin, int end) { // IF (cond) {body}
+        ast::c_if* parse_c_if(int begin) { // IF (cond) {body}
             if (tokens[begin].type != sym_t::IF) {
                 throw std::runtime_error("Invalid if statement");
             }
@@ -319,7 +322,7 @@ namespace compiler {
             return new ast::c_if(branches);
         }
 
-        ast::c_for* parse_c_for(int begin, int end) { // FOR (init; cond; upd) {body}
+        ast::c_for* parse_c_for(int begin) { // FOR (init; cond; upd) {body}
             if (tokens[begin].type != sym_t::FOR) {
                 throw std::runtime_error("Invalid for statement");
             }
@@ -345,7 +348,7 @@ namespace compiler {
             return new ast::c_for(init, cond, upd, body);
         }
 
-        ast::c_while* parse_c_while(int begin, int end) { // WHILE (cond) {body}
+        ast::c_while* parse_c_while(int begin) { // WHILE (cond) {body}
             if (tokens[begin].type != sym_t::WHILE) {
                 throw std::runtime_error("Invalid while statement");
             }
