@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base.hpp"
-#include "ds/trie_map.hpp"
+#include "../ds/trie_map.hpp"
 
 namespace compiler {
     enum class sym_t {
