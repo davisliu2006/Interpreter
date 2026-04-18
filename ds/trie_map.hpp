@@ -22,7 +22,6 @@ namespace ds {
 
         node* root;
 
-        public:
         trie_map() {root = new node(NULL, 0, false);}
         ~trie_map() {delete root;}
     
@@ -75,6 +74,26 @@ namespace ds {
                 }
             }
             return {std::string(begin, end_final), curr_final};
+        }
+
+        private:
+        static void copy_subtree(node* dst_par, node*& dst, node* src) {
+            if (!src) {return;}
+            dst = new node(dst_par, src->radix, src->leaf);
+            dst->val = src->val;
+            for (int i = 0; i < RANGE; i++) {
+                copy_subtree(dst, dst->children[i], src->children[i]);
+            }
+        }
+        public:
+        trie_map(const trie_map& tr)  {
+            copy_subtree(NULL, root, tr.root);
+        }
+        trie_map& operator=(const trie_map& tr) {
+            if (this == &tr) {return *this;}
+            delete root;
+            copy_subtree(NULL, root, tr.root);
+            return *this;
         }
     };
 }
