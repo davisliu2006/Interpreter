@@ -1,8 +1,8 @@
 #pragma once
 
+#include <climits>
 #include "ast.hpp"
 #include "symbols.hpp"
-#include <climits>
 
 namespace compiler {
     struct Parser {
