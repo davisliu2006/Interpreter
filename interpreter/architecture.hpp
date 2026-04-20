@@ -6,12 +6,12 @@
 
 namespace interpreter {
     struct Architecture {
-        std::vector<inst> inst_mem;
-        std::vector<int8_t> const_mem;
-        std::vector<int8_t> stack_mem;
-        std::vector<int8_t> heap_mem;
-        std::vector<int8_t> expr_stack;
-        std::vector<int8_t> syscall_buf;
+        vector<inst> inst_mem;
+        vector<int8_t> const_mem;
+        vector<int8_t> stack_mem;
+        vector<int8_t> heap_mem;
+        vector<int8_t> expr_stack;
+        vector<int8_t> syscall_buf;
         Registers reg;
         
         Architecture() {

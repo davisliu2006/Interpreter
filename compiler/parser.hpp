@@ -89,7 +89,7 @@ namespace compiler {
             } else if (tokens[begin].type == sym_t::WHILE) { // WHILE
                 return parse_c_while(begin);
             } else if ((tokens[begin].type == sym_t::ID || tokens[begin].type == sym_t::TYPE)
-            && tokens[begin+1].type == sym_t::ID && tokens[begin+2].type == sym_t::ROUND_RIGHT) { // TYPE ID(
+            && tokens[begin+1].type == sym_t::ID && tokens[begin+2].type == sym_t::ROUND_LEFT) { // TYPE ID(
                 /*
                 Note: At this point, we don't know if it's ID or TYPE if it's not a builtin type
                 but we can treat it as a type and do typechecking later
@@ -103,7 +103,9 @@ namespace compiler {
 
         ast::simple_stmt* parse_simple_stmt(int begin, int end) {
             curr = end;
-            if (tokens[begin].type == sym_t::ID
+            if (tokens[begin].type == sym_t::RETURN) {
+                return parse_f_return(begin, end);
+            } else if (tokens[begin].type == sym_t::ID
             && tokens[begin+1].type == sym_t::OPERATOR && tokens[begin+1].text == "=") { // ID =
                 return parse_asn(begin, end);
             } else if (tokens[begin].type == sym_t::ID
@@ -169,7 +171,6 @@ namespace compiler {
             int stmt_begin = begin;
             while (stmt_begin < end) {
                 int stmt_end_max = std::min(end, next_semicolon[stmt_begin]);
-                cout << "stmt_begin: " << stmt_begin << ", stmt_end_max: " << stmt_end_max << '\n';
                 stmts.push_back(parse_stmt(stmt_begin, stmt_end_max));
                 if (tokens[curr].type == sym_t::SEMI) {curr++;}
                 stmt_begin = curr;
@@ -241,6 +242,7 @@ namespace compiler {
                 if (tokens[param_end].type == sym_t::ROUND_RIGHT) {
                     break;
                 }
+                param_begin = param_end+1;
             }
             if (tokens[param_end+1].type != sym_t::CURLY_LEFT) {
                 throw std::runtime_error("Invalid function definition");
@@ -272,6 +274,14 @@ namespace compiler {
                 }
             }
             return new ast::f_call(tokens[begin].text, args);
+        }
+
+        ast::f_return* parse_f_return(int begin, int end) { // RETURN expr
+            if (tokens[begin].type != sym_t::RETURN) {
+                throw std::runtime_error("Invalid return statement");
+            }
+            ast::expr* expression = parse_expr(begin+1, end);
+            return new ast::f_return(expression);
         }
 
         ast::c_if* parse_c_if(int begin) { // IF (cond) {body}

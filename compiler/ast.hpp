@@ -47,7 +47,7 @@ namespace compiler {
             sym_t type;
             string value;
 
-            literal(sym_t type, string value): value(value) {}
+            literal(sym_t type, const string& value): type(type), value(value) {}
 
             virtual string to_string() {
                 return "literal "+value;
@@ -78,17 +78,17 @@ namespace compiler {
             string type;
             string var;
 
-            var_decl(string type, string var): type(type), var(var) {}
+            var_decl(const string& type, const string& var): type(type), var(var) {}
             virtual ~var_decl() {}
 
             virtual string to_string() {
-                return "var_decl " + type + " " + var;
+                return "var_decl "+type+" "+var;
             }
         };
         struct var_def: var_decl {
             expr* expression;
 
-            var_def(string type, string var, expr* expression):
+            var_def(const string& type, const string& var, expr* expression):
             var_decl(type, var), expression(expression) {}
             virtual ~var_def() {
                 delete expression;
@@ -101,39 +101,40 @@ namespace compiler {
         struct var_ref: expr {
             string name;
 
-            var_ref(string name): name(name) {}       
+            var_ref(const string& name): name(name) {}
             
             // inferred fields
             var_decl* resolve = NULL;
 
             virtual string to_string() {
-                return "var "+name;
+                return "var "+name+(resolve? " (resolved as "+resolve->type+")" : " (unresolved)");
             }
         };
         struct asn: expr {
-            string var;
+            var_ref* var;
             expr* expression;
 
-            asn(string var, expr* expression): var(var), expression(expression) {}
+            asn(const string& var, expr* expression):
+            var(new var_ref(var)), expression(expression) {}
             virtual ~asn() {
                 delete expression;
             }
 
             virtual string to_string() {
-                return "asn "+var+" = (\n"+(expression? expression->to_string() : "NULL")+"\n)";
+                return "asn "+var->to_string()+" = (\n"+(expression? expression->to_string() : "NULL")+"\n)";
             }
         };
         struct op_asn: expr {
-            string var;
+            var_ref* var;
             string op;
             expr* expression;
 
             op_asn(string var, string op, expr* expression):
-            var(var), op(op), expression(expression) {}
+            var(new var_ref(var)), op(op), expression(expression) {}
             virtual ~op_asn() {}
 
             virtual string to_string() {
-                return "op_asn "+var+" "+op+"= (\n"+(expression? expression->to_string() : "NULL")+"\n)";
+                return "op_asn "+var->to_string()+" "+op+"= (\n"+(expression? expression->to_string() : "NULL")+"\n)";
             }
         };
         struct op_bin: expr {
@@ -141,14 +142,15 @@ namespace compiler {
             expr* lhs;
             expr* rhs;
 
-            op_bin(string op, expr* lhs, expr* rhs): op(op), lhs(lhs), rhs(rhs) {}
+            op_bin(const string& op, expr* lhs, expr* rhs):
+            op(op), lhs(lhs), rhs(rhs) {}
             virtual ~op_bin() {
                 delete lhs;
                 delete rhs;
             }
 
             virtual string to_string() {
-                return "op_bin " + op + " (\n" + (lhs? lhs->to_string() : "NULL") + "\n) (\n" + (rhs? rhs->to_string() : "NULL") + "\n)";
+                return "op_bin "+op+" (\n"+(lhs? lhs->to_string() : "NULL")+"\n) (\n"+(rhs? rhs->to_string() : "NULL")+"\n)";
             }
         };
 
@@ -159,7 +161,7 @@ namespace compiler {
             vector<var_decl*> params;
             block* body;
 
-            f_def(string type, string name, vector<var_decl*> params, block* body):
+            f_def(const string& type, const string& name, vector<var_decl*> params, block* body):
             type(type), name(name), params(params), body(body) {}
             virtual ~f_def() {
                 for (var_decl* param: params) {delete param;}
@@ -167,7 +169,7 @@ namespace compiler {
             }
 
             virtual string to_string() {
-                string val = "f_def " + type + " " + name + "(\n";
+                string val = "f_def "+type+" "+name+"(\n";
                 for (int i = 0; i < params.size(); i++) {
                     val += params[i]? params[i]->to_string() : "NULL";
                     if (i != params.size()-1) {val += ",\n";}
@@ -189,13 +191,25 @@ namespace compiler {
             f_def* resolve = NULL;
 
             virtual string to_string() {
-                string val = "f_call " + func + "(\n";
+                string val = "f_call "+func+(resolve? " (resolved as "+resolve->type+")" : " (unresolved)")+"(\n";
                 for (int i = 0; i < args.size(); i++) {
                     val += args[i]? args[i]->to_string() : "NULL";
                     if (i != args.size()-1) {val += ",\n";}
                 }
                 val += "\n)";
                 return val;
+            }
+        };
+        struct f_return: simple_stmt {
+            expr* expression;
+
+            f_return(expr* expression): expression(expression) {}
+            virtual ~f_return() {
+                delete expression;
+            }
+
+            virtual string to_string() {
+                return "f_return "+(expression? expression->to_string() : "NULL");
             }
         };
 

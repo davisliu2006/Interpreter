@@ -28,7 +28,7 @@ namespace interpreter {
         static const int SIZE = 32;
         
         inst* inst_ptr;
-        std::array<int64_t,SIZE> reg;
+        array<int64_t,SIZE> reg;
 
         Registers() {
             reg.fill(0);
