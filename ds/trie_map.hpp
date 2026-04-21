@@ -25,7 +25,7 @@ namespace ds {
         trie_map() {root = new node(NULL, 0, false);}
         ~trie_map() {delete root;}
     
-        node* find(const char* begin, int size, node* _root = NULL) {
+        node* find(const char* begin, int size, node* _root = NULL) const {
             const char* end = begin+size;
             node* curr = (_root? _root : root);
             while (begin < end) {
@@ -56,10 +56,10 @@ namespace ds {
         void erase(node* nd) {
             nd->leaf = false;
         }
-        node* find(const std::string& str) {return find(str.c_str(), str.size());}
+        node* find(const std::string& str) const {return find(str.c_str(), str.size());}
         node* insert(const std::string& str) {return insert(str.c_str(), str.size());}
 
-        std::pair<std::string, node*> get_longest_prefix(const char* begin, node* _root = NULL) {
+        std::pair<std::string, node*> get_longest_prefix(const char* begin, node* _root = NULL) const {
             const char* end = begin;
             node* curr = (_root? _root : root);
             const char* end_final = begin;
@@ -93,6 +93,17 @@ namespace ds {
             if (this == &tr) {return *this;}
             delete root;
             copy_subtree(NULL, root, tr.root);
+            return *this;
+        }
+        trie_map(trie_map&& tr)  {
+            root = tr.root;
+            tr.root = NULL;
+        }
+        trie_map& operator=(trie_map&& tr) {
+            if (this == &tr) {return *this;}
+            delete root;
+            root = tr.root;
+            tr.root = NULL;
             return *this;
         }
     };

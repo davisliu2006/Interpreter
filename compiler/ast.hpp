@@ -16,22 +16,22 @@ namespace compiler {
         struct ASTNode {
             virtual ~ASTNode() = default;
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "ASTNode (unknown)";
             }
-            virtual string to_formatted_string() {
+            virtual string to_formatted_string() const {
                 return format_string(to_string());
             }
         };
 
         // statements (generic)
         struct stmt: ASTNode {
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "stmt (unknown)";
             }
         };
         struct simple_stmt: stmt {
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "simple_stmt (unknown)";
             }
         };
@@ -39,7 +39,7 @@ namespace compiler {
             // inferred fields
             string ret_type;
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "expr (unknown)";
             }
         };
@@ -49,7 +49,7 @@ namespace compiler {
 
             literal(sym_t type, const string& value): type(type), value(value) {}
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "literal "+value;
             }
         };
@@ -63,7 +63,7 @@ namespace compiler {
                 for (stmt* stmt: stmts) {delete stmt;}
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 string val = "block {\n";
                 for (stmt* stmt: stmts) {
                     val += (stmt? stmt->to_string() : "NULL")+"\n";
@@ -81,7 +81,7 @@ namespace compiler {
             var_decl(const string& type, const string& var): type(type), var(var) {}
             virtual ~var_decl() {}
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "var_decl "+type+" "+var;
             }
         };
@@ -94,7 +94,7 @@ namespace compiler {
                 delete expression;
             }
             
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "var_def "+type+" "+var+" = (\n"+(expression? expression->to_string() : "NULL")+"\n)";
             }
         };
@@ -106,7 +106,7 @@ namespace compiler {
             // inferred fields
             var_decl* resolve = NULL;
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "var "+name+(resolve? " (resolved as "+resolve->type+")" : " (unresolved)");
             }
         };
@@ -120,7 +120,7 @@ namespace compiler {
                 delete expression;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "asn "+var->to_string()+" = (\n"+(expression? expression->to_string() : "NULL")+"\n)";
             }
         };
@@ -133,7 +133,7 @@ namespace compiler {
             var(new var_ref(var)), op(op), expression(expression) {}
             virtual ~op_asn() {}
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "op_asn "+var->to_string()+" "+op+"= (\n"+(expression? expression->to_string() : "NULL")+"\n)";
             }
         };
@@ -149,7 +149,7 @@ namespace compiler {
                 delete rhs;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "op_bin "+op+" (\n"+(lhs? lhs->to_string() : "NULL")+"\n) (\n"+(rhs? rhs->to_string() : "NULL")+"\n)";
             }
         };
@@ -168,7 +168,7 @@ namespace compiler {
                 delete body;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 string val = "f_def "+type+" "+name+"(\n";
                 for (int i = 0; i < params.size(); i++) {
                     val += params[i]? params[i]->to_string() : "NULL";
@@ -190,7 +190,7 @@ namespace compiler {
             // inferred fields
             f_def* resolve = NULL;
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 string val = "f_call "+func+(resolve? " (resolved as "+resolve->type+")" : " (unresolved)")+"(\n";
                 for (int i = 0; i < args.size(); i++) {
                     val += args[i]? args[i]->to_string() : "NULL";
@@ -208,7 +208,7 @@ namespace compiler {
                 delete expression;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "f_return "+(expression? expression->to_string() : "NULL");
             }
         };
@@ -224,7 +224,7 @@ namespace compiler {
                 delete body;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "if_branch (\n"+(cond? cond->to_string() : "NULL")+"\n) {\n"+(body? body->to_string() : "NULL")+"\n}";
             }
         };
@@ -236,7 +236,7 @@ namespace compiler {
                 for (if_branch* branch: branches) {delete branch;}
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 string val = "c_if";
                 for (if_branch* branch: branches) {
                     assert(branch);
@@ -260,7 +260,7 @@ namespace compiler {
                 delete body;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "c_for (\n"+(init? init->to_string() : "NULL")+";\n"+(cond? cond->to_string() : "NULL")+";\n"+(upd? upd->to_string() : "NULL")+"\n) {\n"+(body? body->to_string() : "NULL")+"\n}";
             }
         };
@@ -274,7 +274,7 @@ namespace compiler {
                 delete body;
             }
 
-            virtual string to_string() {
+            virtual string to_string() const {
                 return "c_while (\n"+(cond? cond->to_string() : "NULL")+"\n) {\n"+(body? body->to_string() : "NULL")+"\n}";
             }
         };

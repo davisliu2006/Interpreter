@@ -2,6 +2,7 @@
 
 #include <deque>
 #include "ast.hpp"
+#include "mem_layout.hpp"
 #include "../ds/trie_map.hpp"
 
 namespace compiler {
@@ -14,21 +15,31 @@ namespace compiler {
         private:
         ast::block* top_level;
         std::deque<Scope> scopes;
+        ast::stmt* scope_stmt = NULL;
         
         public:
         ds::trie_map<ast::var_decl*> var_exports;
         set<ast::var_ref*> var_imports;
         ds::trie_map<ast::f_def*> f_exports;
         set<ast::f_call*> f_imports;
+        StackBlockMap stack_blocks;
 
         Resolver(ast::block* top_level): top_level(top_level) {}
 
         void resolve() {
             resolve_block(top_level);
+            // exports
+            for (ast::stmt* stmt: top_level->stmts) {
+                if (ast::var_decl* var_decl = dynamic_cast<ast::var_decl*>(stmt)) {
+                    var_exports.insert(var_decl->var.c_str())->val = var_decl;
+                } else if (ast::f_def* f_def = dynamic_cast<ast::f_def*>(stmt)) {
+                    f_exports.insert(f_def->name.c_str())->val = f_def;
+                }
+            }
         }
 
         private:
-        ast::var_decl* find_var_decl(const char* str) {
+        ast::var_decl* find_var_decl(const char* str) const {
             auto it = scopes.rbegin();
             while (it != scopes.rend()) {
                 auto f = it->var_map.find(str);
@@ -37,7 +48,7 @@ namespace compiler {
             }
             return NULL;
         }
-        ast::f_def* find_f_def(const char* str) {
+        ast::f_def* find_f_def(const char* str) const {
             auto it = scopes.rbegin();
             while (it != scopes.rend()) {
                 auto f = it->func_map.find(str);
@@ -49,6 +60,7 @@ namespace compiler {
 
         void resolve_block(ast::block* block) {
             scopes.push_back(Scope());
+            stack_blocks[scope_stmt = block] = StackBlock();
             for (ast::stmt* stmt: block->stmts) {
                 resolve_stmt(stmt);
             }
@@ -68,6 +80,7 @@ namespace compiler {
                     throw std::runtime_error("Redeclaration of variable: "+var_decl->var);
                 }
                 scopes.back().var_map.insert(var_decl->var.c_str())->val = var_decl;
+                stack_blocks[scope_stmt].add_var(var_decl);
                 if (ast::var_def* var_def = dynamic_cast<ast::var_def*>(stmt)) {
                     resolve_expr(var_def->expression);
                 }
@@ -85,6 +98,7 @@ namespace compiler {
                 }
             } else if (ast::c_for* c_for = dynamic_cast<ast::c_for*>(stmt)) {
                 scopes.push_back(Scope());
+                stack_blocks[scope_stmt = c_for] = StackBlock();
                 resolve_stmt(c_for->init);
                 resolve_expr(c_for->cond);
                 resolve_stmt(c_for->upd);
@@ -136,8 +150,10 @@ namespace compiler {
 
         void resolve_f_def(ast::f_def* f_def) {
             scopes.push_back(Scope());
+            stack_blocks[scope_stmt = f_def] = StackBlock();
             for (ast::var_decl* param: f_def->params) {
                 scopes.back().var_map.insert(param->var.c_str())->val = param;
+                stack_blocks[scope_stmt].add_var(param);
             }
             resolve_block_append_scope(f_def->body);
             scopes.pop_back();

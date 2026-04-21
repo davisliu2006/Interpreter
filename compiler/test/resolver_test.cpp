@@ -27,6 +27,9 @@ vector<Test> tests = {
             Resolver resolver(top_level);
             resolver.resolve();
             cout << top_level->to_formatted_string() << '\n';
+            for (const auto& [key, val]: resolver.stack_blocks) {
+                cout << val << '\n';
+            }
             delete top_level;
         } catch (const std::runtime_error& e) {
             cout << e.what() << '\n';
@@ -53,6 +56,9 @@ vector<Test> tests = {
             Resolver resolver(top_level);
             resolver.resolve();
             cout << top_level->to_formatted_string() << '\n';
+            for (const auto& [key, val]: resolver.stack_blocks) {
+                cout << val << '\n';
+            }
             delete top_level;
         } catch (const std::runtime_error& e) {
             cout << e.what() << '\n';
@@ -102,6 +108,9 @@ vector<Test> tests = {
             Resolver resolver(top_level);
             resolver.resolve();
             cout << top_level->to_formatted_string() << '\n';
+            for (const auto& [key, val]: resolver.stack_blocks) {
+                cout << val << '\n';
+            }
             delete top_level;
         } catch (const std::runtime_error& e) {
             cout << e.what() << '\n';

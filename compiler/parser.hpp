@@ -13,7 +13,7 @@ namespace compiler {
         int curr = 0;
         int TOK_SIZE = 0;
 
-        int next_seperator (int begin) {
+        int next_seperator (int begin) const {
             int cb = closing_bracket[begin];
             int ns = next_semicolon[begin];
             int nc = next_comma[begin];
