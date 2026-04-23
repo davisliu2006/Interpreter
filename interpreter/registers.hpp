@@ -24,6 +24,26 @@ namespace interpreter {
         T4 = 19,
     };
 
+    inline string to_string(reg_t x) {
+        switch (x) {
+            case reg_t::ZERO: {return "ZERO";}
+            case reg_t::STK_PTR: {return "STK_PTR";}
+            case reg_t::HEAP_PTR: {return "HEAP_PTR";}
+            case reg_t::EXPR_PTR: {return "EXPR_PTR";}
+            case reg_t::RA: {return "RA";}
+            case reg_t::RES: {return "RES";}
+            case reg_t::RES_TYPE: {return "RES_TYPE";}
+            case reg_t::T1: {return "T1";}
+            case reg_t::T2: {return "T2";}
+            case reg_t::T3: {return "T3";}
+            case reg_t::T4: {return "T4";}
+        }
+        return "UNKNOWN";
+    }
+    inline std::ostream& operator<<(std::ostream& os, reg_t x) {
+        return os << to_string(x);
+    }
+
     struct Registers {
         static const int SIZE = 32;
         

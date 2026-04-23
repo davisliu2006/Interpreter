@@ -61,9 +61,7 @@ namespace compiler {
         void resolve_block(ast::block* block) {
             scopes.push_back(Scope());
             stack_blocks[scope_stmt = block] = StackBlock();
-            for (ast::stmt* stmt: block->stmts) {
-                resolve_stmt(stmt);
-            }
+            resolve_block_append_scope(block);
             scopes.pop_back();
         }
 

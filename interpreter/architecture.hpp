@@ -228,6 +228,16 @@ namespace interpreter {
                     reg[instruction.rd()] = val;
                     break;
                 }
+                case inst_t::push_expr: {
+                    reg.expr_ptr() += 8;
+                    *(int64_t*)(reg.expr_ptr()) = reg[instruction.rs1()];
+                    break;
+                }
+                case inst_t::pop_expr: {
+                    reg[instruction.rd()] = *(int64_t*)(reg.expr_ptr());
+                    reg.expr_ptr() -= 8;
+                    break;
+                }
                 case inst_t::syscall: {
                     std::cout << "syscall: " << reg[instruction.rs1()] << std::endl;
                     break;

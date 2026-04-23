@@ -24,33 +24,37 @@ namespace compiler {
         TYPE
     };
 
+    inline string to_string(sym_t x) {
+        switch (x) {
+            case sym_t::INVALID: {return "INVALID";}
+            case sym_t::WS: {return "WS";}
+            case sym_t::COMMENT: {return "COMMENT";}
+            case sym_t::SEMI: {return "SEMI";}
+            case sym_t::COMMA: {return "COMMA";}
+            case sym_t::INT: {return "INT";}
+            case sym_t::FLOAT: {return "FLOAT";}
+            case sym_t::ID: {return "ID";}
+            case sym_t::STRING: {return "STRING";}
+            case sym_t::CHAR: {return "CHAR";}
+            case sym_t::CURLY_LEFT: {return "CURLY_LEFT";}
+            case sym_t::CURLY_RIGHT: {return "CURLY_RIGHT";}
+            case sym_t::SQUARE_LEFT: {return "SQUARE_LEFT";}
+            case sym_t::SQUARE_RIGHT: {return "SQUARE_RIGHT";}
+            case sym_t::ROUND_LEFT: {return "ROUND_LEFT";}
+            case sym_t::ROUND_RIGHT: {return "ROUND_RIGHT";}
+            case sym_t::OPERATOR: {return "OPERATOR";}
+            case sym_t::IF: {return "IF";}
+            case sym_t::ELSE: {return "ELSE";}
+            case sym_t::FOR: {return "FOR";}
+            case sym_t::WHILE: {return "WHILE";}
+            case sym_t::RETURN: {return "RETURN";}
+            case sym_t::IN: {return "IN";}
+            case sym_t::TYPE: {return "TYPE";}
+        }
+        return "UNKNOWN";
+    }
     inline std::ostream& operator <<(std::ostream& out, sym_t x) {
-        if (x == sym_t::INVALID) {out << "INVALID";}
-        else if (x == sym_t::WS) {out << "WS";}
-        else if (x == sym_t::COMMENT) {out << "COMMENT";}
-        else if (x == sym_t::SEMI) {out << "SEMI";}
-        else if (x == sym_t::COMMA) {out << "COMMA";}
-        else if (x == sym_t::INT) {out << "INT";}
-        else if (x == sym_t::FLOAT) {out << "FLOAT";}
-        else if (x == sym_t::ID) {out << "ID";}
-        else if (x == sym_t::STRING) {out << "STRING";}
-        else if (x == sym_t::CHAR) {out << "CHAR";}
-        else if (x == sym_t::CURLY_LEFT) {out << "CURLY_LEFT";}
-        else if (x == sym_t::CURLY_RIGHT) {out << "CURLY_RIGHT";}
-        else if (x == sym_t::SQUARE_LEFT) {out << "SQUARE_LEFT";}
-        else if (x == sym_t::SQUARE_RIGHT) {out << "SQUARE_RIGHT";}
-        else if (x == sym_t::ROUND_LEFT) {out << "ROUND_LEFT";}
-        else if (x == sym_t::ROUND_RIGHT) {out << "ROUND_RIGHT";}
-        else if (x == sym_t::OPERATOR) {out << "OPERATOR";}
-        else if (x == sym_t::IF) {out << "IF";}
-        else if (x == sym_t::ELSE) {out << "ELSE";}
-        else if (x == sym_t::FOR) {out << "FOR";}
-        else if (x == sym_t::WHILE) {out << "WHILE";}
-        else if (x == sym_t::RETURN) {out << "RETURN";}
-        else if (x == sym_t::IN) {out << "IN";}
-        else if (x == sym_t::TYPE) {out << "TYPE";}
-        else {out << "UNKNOWN";}
-        return out;
+        return out << to_string(x);
     }
 
     inline sym_t char_type(char c) {
