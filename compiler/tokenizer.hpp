@@ -101,8 +101,13 @@ namespace compiler {
             const char* substr = str.c_str();
             while (substr < str.c_str()+str.size()) {
                 while (char_type(*substr) == sym_t::WS) {substr++;}
+                if (substr >= str.c_str()+str.size()) {break;}
                 Token nt = next_token(substr);
-                assert(nt.text.size() != 0 && "Impossible sequence");
+                if (nt.type == sym_t::INVALID || nt.text.size() == 0) {
+                    string prev = tokens.empty()? "<start>" : tokens.back().text;
+                    cout << "Invalid token after " << prev << ": " << nt.text << '\n';
+                    throw std::runtime_error("Invalid token");
+                }
                 tokens.push_back(nt);
                 substr += nt.text.size();
             }

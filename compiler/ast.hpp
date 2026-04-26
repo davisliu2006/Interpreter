@@ -153,6 +153,19 @@ namespace compiler {
                 return "op_bin "+op+" (\n"+(lhs? lhs->to_string() : "NULL")+"\n) (\n"+(rhs? rhs->to_string() : "NULL")+"\n)";
             }
         };
+        struct op_un: expr {
+            string op;
+            expr* expression;
+
+            op_un(const string& op, expr* expression): op(op), expression(expression) {}
+            virtual ~op_un() {
+                delete expression;
+            }
+
+            virtual string to_string() const {
+                return "op_un "+op+" (\n"+(expression? expression->to_string() : "NULL")+"\n)";
+            }
+        };
 
         // functions
         struct f_def: stmt {

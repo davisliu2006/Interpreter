@@ -170,6 +170,39 @@ vector<Test> tests = {
             throw e;
         }
     }),
+    Test("expr_asn", []() {
+        try {
+            Parser parser(tokenizer::tokenize("x = 1+2"));
+            auto* ast = parser.parse_expr(0, parser.tokens.size());
+            cout << ast->to_formatted_string() << '\n';
+            ast::asn* asn = dynamic_cast<ast::asn*>(ast);
+            assert(asn);
+            assert(asn->var->name == "x");
+            ast::op_bin* rhs = dynamic_cast<ast::op_bin*>(asn->expression);
+            assert(rhs && rhs->op == "+");
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
+    Test("expr_op_asn", []() {
+        try {
+            Parser parser(tokenizer::tokenize("x += y*2"));
+            auto* ast = parser.parse_stmt(0, parser.tokens.size());
+            cout << ast->to_formatted_string() << '\n';
+            ast::op_asn* op_asn = dynamic_cast<ast::op_asn*>(ast);
+            assert(op_asn);
+            assert(op_asn->var->name == "x");
+            assert(op_asn->op == "+");
+            ast::op_bin* rhs = dynamic_cast<ast::op_bin*>(op_asn->expression);
+            assert(rhs && rhs->op == "*");
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
     Test("block_simple", []() {
         try {
             Parser parser(tokenizer::tokenize("int x = 1; int y = 2;"));

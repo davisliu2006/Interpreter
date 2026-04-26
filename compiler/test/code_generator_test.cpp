@@ -24,6 +24,29 @@ vector<Test> tests = {
             Parser parser(tokenizer::tokenize(code));
             auto* ast = parser.parse_block(0, parser.tokens.size());
             Resolver resolver(ast);
+            cout << ast->to_formatted_string() << '\n';
+            resolver.resolve();
+            CodeGenerator generator(ast, resolver.stack_blocks);
+            generator.generate();
+            for (const interpreter::inst& inst: generator.main_insts) {
+                cout << inst.to_string() << '\n';
+            }
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
+    Test("op_asn", []() {
+        try {
+            string code =
+                "int x = 3;\n"
+                "x++;\n"
+                "x--;\n"
+            ;
+            Parser parser(tokenizer::tokenize(code));
+            auto* ast = parser.parse_block(0, parser.tokens.size());
+            Resolver resolver(ast);
             resolver.resolve();
             CodeGenerator generator(ast, resolver.stack_blocks);
             generator.generate();

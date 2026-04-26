@@ -31,6 +31,7 @@ namespace compiler {
             if (ast::var_decl* var_decl = dynamic_cast<ast::var_decl*>(stmt)) {
                 if (ast::var_def* var_def = dynamic_cast<ast::var_def*>(var_decl)) {
                     generate_expr(var_def->expression, insts);
+                    insts.push_back(inst::store_64(reg_t::RES, stack_model.back().find_var(var_decl)->offset, reg_t::STK_PTR));
                 }
 
             } else if (ast::f_def* f_def = dynamic_cast<ast::f_def*>(stmt)) {
@@ -116,9 +117,36 @@ namespace compiler {
             } else if (ast::literal* literal = dynamic_cast<ast::literal*>(expr)) {
                 insts.push_back(inst::load_imm(reg_t::RES, std::stoi(literal->value)));
             } else if (ast::asn* asn = dynamic_cast<ast::asn*>(expr)) {
-                insts.push_back(inst::store_64(reg_t::RES, stack_model.back().find_var(var_ref->resolve)->offset, reg_t::STK_PTR));
+                generate_expr(asn->expression, insts);
+                insts.push_back(inst::store_64(reg_t::RES, stack_model.back().find_var(asn->var->resolve)->offset, reg_t::STK_PTR));
             } else if (ast::op_asn* op_asn = dynamic_cast<ast::op_asn*>(expr)) {
-                // TODO
+                int32_t offset = stack_model.back().find_var(op_asn->var->resolve)->offset;
+                insts.push_back(inst::load_64(reg_t::RES, offset, reg_t::STK_PTR));
+                insts.push_back(inst::push_expr(reg_t::RES));
+                generate_expr(op_asn->expression, insts);
+                insts.push_back(inst::pop_expr(reg_t::T1));
+                if (op_asn->op == "+") {
+                    insts.push_back(inst::add(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "-") {
+                    insts.push_back(inst::sub(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "*") {
+                    insts.push_back(inst::mul(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "/") {
+                    insts.push_back(inst::div(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "%") {
+                    insts.push_back(inst::mod(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "<<") {
+                    insts.push_back(inst::b_sl(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == ">>") {
+                    insts.push_back(inst::b_sr(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "&") {
+                    insts.push_back(inst::b_and(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "^") {
+                    insts.push_back(inst::b_xor(reg_t::RES, reg_t::T1, reg_t::RES));
+                } else if (op_asn->op == "|") {
+                    insts.push_back(inst::b_or(reg_t::RES, reg_t::T1, reg_t::RES));
+                }
+                insts.push_back(inst::store_64(reg_t::RES, offset, reg_t::STK_PTR));
             } else if (ast::op_bin* op_bin = dynamic_cast<ast::op_bin*>(expr)) {
                 generate_expr(op_bin->lhs, insts);
                 insts.push_back(inst::push_expr(reg_t::RES));

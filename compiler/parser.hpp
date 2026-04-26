@@ -381,6 +381,18 @@ namespace compiler {
         ast::expr* parse_expr_helper(int begin, int op_pos, int end) {
             // TODO: support and clean up expr cases
             if (op_pos > begin && op_pos < end-1) {
+                if (tokens[begin].type == sym_t::ID && begin+1 == op_pos) {
+                    const string& op = tokens[op_pos].text;
+                    ast::expr* rhs = parse_expr(op_pos+1, end);
+                    if (op == "=") {
+                        return new ast::asn(tokens[begin].text, rhs);
+                    }
+                    if (op == "+=" || op == "-=" || op == "*=" || op == "/="
+                    || op == "%=" || op == "&=" || op == "|=" || op == "^="
+                    || op == "<<=" || op == ">>=") {
+                        return new ast::op_asn(tokens[begin].text, op.substr(0, op.size()-1), rhs);
+                    }
+                }
                 ast::expr* lhs = parse_expr(begin, op_pos);
                 ast::expr* rhs = parse_expr(op_pos+1, end);
                 return new ast::op_bin(tokens[op_pos].text, lhs, rhs);
