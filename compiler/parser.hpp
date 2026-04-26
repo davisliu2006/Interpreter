@@ -148,11 +148,19 @@ namespace compiler {
             }
             int op_pos = -1;
             int op_prec = INT_MIN;
-            for (int i = begin; i < end; i++) {
+            for (int i = begin; i < end; i++) { // find the lowest precedence operator
                 if (is_opening_bracket(tokens[i].type)) {
                     i = closing_bracket[i];
                 } else if (tokens[i].type == sym_t::OPERATOR) {
-                    int prec = operator_precedence.find(tokens[i].text.c_str(), tokens[i].text.size())->val;
+                    bool prefix_unary = is_prefix_unary(tokens[i].text) && (
+                        i == begin // -x
+                        || tokens[i-1].type == sym_t::OPERATOR // x+-y
+                        || is_opening_bracket(tokens[i-1].type) // (-x)
+                    );
+                    if (prefix_unary && i != begin) {continue;} // skip non-outer prefix unary operators
+                    int prec = (prefix_unary?
+                        -1 : operator_precedence.find(tokens[i].text.c_str(), tokens[i].text.size())->val
+                    );
                     if (prec > op_prec) {
                         op_prec = prec;
                         op_pos = i;
@@ -380,7 +388,7 @@ namespace compiler {
 
         ast::expr* parse_expr_helper(int begin, int op_pos, int end) {
             // TODO: support and clean up expr cases
-            if (op_pos > begin && op_pos < end-1) {
+            if (op_pos > begin && op_pos < end-1) { // binary operator
                 if (tokens[begin].type == sym_t::ID && begin+1 == op_pos) {
                     const string& op = tokens[op_pos].text;
                     ast::expr* rhs = parse_expr(op_pos+1, end);
@@ -396,7 +404,7 @@ namespace compiler {
                 ast::expr* lhs = parse_expr(begin, op_pos);
                 ast::expr* rhs = parse_expr(op_pos+1, end);
                 return new ast::op_bin(tokens[op_pos].text, lhs, rhs);
-            } else if (op_pos == begin) { 
+            } else if (op_pos == begin) { // prefix unary operator
                 if (tokens[op_pos].text == "++") {
                     return new ast::op_asn(
                         tokens[op_pos+1].text, "+",
@@ -406,6 +414,11 @@ namespace compiler {
                     return new ast::op_asn(
                         tokens[op_pos+1].text, "-",
                         new ast::literal(sym_t::INT, "1")
+                    );
+                } else if (is_prefix_unary(tokens[op_pos].text)) {
+                    return new ast::op_un(
+                        tokens[op_pos].text,
+                        parse_expr(op_pos+1, end)
                     );
                 } else {
                     cout << "Invalid expression operator: " << tokens[op_pos].text << '\n';

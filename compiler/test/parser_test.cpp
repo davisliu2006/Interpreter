@@ -178,8 +178,8 @@ vector<Test> tests = {
             ast::asn* asn = dynamic_cast<ast::asn*>(ast);
             assert(asn);
             assert(asn->var->name == "x");
-            ast::op_bin* rhs = dynamic_cast<ast::op_bin*>(asn->expression);
-            assert(rhs && rhs->op == "+");
+            ast::op_bin* expr = dynamic_cast<ast::op_bin*>(asn->expression);
+            assert(expr && expr->op == "+");
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';
@@ -195,8 +195,27 @@ vector<Test> tests = {
             assert(op_asn);
             assert(op_asn->var->name == "x");
             assert(op_asn->op == "+");
-            ast::op_bin* rhs = dynamic_cast<ast::op_bin*>(op_asn->expression);
-            assert(rhs && rhs->op == "*");
+            ast::op_bin* expr = dynamic_cast<ast::op_bin*>(op_asn->expression);
+            assert(expr && expr->op == "*");
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
+    Test("expr_unary", []() {
+        try {
+            Parser parser(tokenizer::tokenize("-x+~y*z"));
+            auto* ast = parser.parse_stmt(0, parser.tokens.size());
+            cout << ast->to_formatted_string() << '\n';
+            ast::op_bin* expr = dynamic_cast<ast::op_bin*>(ast);
+            assert(expr && expr->op == "+");
+            ast::op_un* expr_l = dynamic_cast<ast::op_un*>(expr->lhs);
+            assert(expr_l && expr_l->op == "-");
+            ast::op_bin* expr_r = dynamic_cast<ast::op_bin*>(expr->rhs);
+            assert(expr_r && expr_r->op == "*");
+            ast::op_un* expr_rl = dynamic_cast<ast::op_un*>(expr_r->lhs);
+            assert(expr_rl && expr_rl->op == "~");
             delete ast;
         } catch (const exception& e) {
             cout << e.what() << '\n';

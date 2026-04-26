@@ -115,6 +115,26 @@ vector<Test> tests = {
         } catch (const std::runtime_error& e) {
             cout << e.what() << '\n';
         }
+    }),
+    Test("unary_expr", []() {
+        try {
+            ast::block* top_level = new ast::block({
+                new ast::var_def("int", "x", new ast::literal(sym_t::INT, "100")),
+                new ast::var_def("int", "y", new ast::op_un("-", new ast::var_ref("x")))
+            });
+            Resolver resolver(top_level);
+            resolver.resolve();
+            ast::var_def* y = dynamic_cast<ast::var_def*>(top_level->stmts[1]);
+            assert(y);
+            ast::op_un* op_un = dynamic_cast<ast::op_un*>(y->expression);
+            assert(op_un && op_un->op == "-");
+            ast::var_ref* x = dynamic_cast<ast::var_ref*>(op_un->expression);
+            assert(x && x->resolve && x->resolve->var == "x");
+            delete top_level;
+        } catch (const std::runtime_error& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
     })
 };
 

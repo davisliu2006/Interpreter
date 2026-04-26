@@ -141,6 +141,8 @@ namespace compiler {
                     var_imports.insert(op_asn->var);
                 }
                 resolve_expr(op_asn->expression);
+            } else if (ast::op_un* op_un = dynamic_cast<ast::op_un*>(expr)) {
+                resolve_expr(op_un->expression);
             } else {
                 throw std::runtime_error("Unknown case");
             }

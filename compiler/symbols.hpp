@@ -88,6 +88,9 @@ namespace compiler {
     inline bool is_literal(sym_t type) {
         return type == sym_t::INT || type == sym_t::FLOAT || type == sym_t::STRING;
     }
+    inline bool is_prefix_unary(const string& text) {
+        return text == "-" || text == "!" || text == "~";
+    }
 
     struct Token {
         sym_t type;
@@ -106,6 +109,7 @@ namespace compiler {
             vector<vector<string>> operators = {
                 {"."},
                 {"++", "--"},
+                {"!", "~"},
                 {"*", "/", "%"},
                 {"+", "-"},
                 {"<<", ">>"},
