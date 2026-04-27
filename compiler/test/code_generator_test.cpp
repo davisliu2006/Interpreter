@@ -26,7 +26,7 @@ vector<Test> tests = {
             Resolver resolver(ast);
             cout << ast->to_formatted_string() << '\n';
             resolver.resolve();
-            CodeGenerator generator(ast, resolver.stack_blocks);
+            CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
             generator.generate();
             for (const interpreter::inst& inst: generator.main_insts) {
                 cout << inst.to_string() << '\n';
@@ -48,7 +48,29 @@ vector<Test> tests = {
             auto* ast = parser.parse_block(0, parser.tokens.size());
             Resolver resolver(ast);
             resolver.resolve();
-            CodeGenerator generator(ast, resolver.stack_blocks);
+            CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
+            generator.generate();
+            for (const interpreter::inst& inst: generator.main_insts) {
+                cout << inst.to_string() << '\n';
+            }
+            delete ast;
+        } catch (const exception& e) {
+            cout << e.what() << '\n';
+            throw e;
+        }
+    }),
+    Test("op_un", []() {
+        try {
+            string code =
+                "int x = 3;\n"
+                "int y = -x + ~x;\n"
+                "int z = !x;\n"
+            ;
+            Parser parser(tokenizer::tokenize(code));
+            auto* ast = parser.parse_block(0, parser.tokens.size());
+            Resolver resolver(ast);
+            resolver.resolve();
+            CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
             generator.generate();
             for (const interpreter::inst& inst: generator.main_insts) {
                 cout << inst.to_string() << '\n';

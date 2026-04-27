@@ -69,6 +69,6 @@ namespace interpreter {
 
         int8_t*& stk_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::STK_PTR)]);}
         int8_t*& heap_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::HEAP_PTR)]);}
-        int8_t*& expr_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::STK_PTR)]);}
+        int8_t*& expr_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::EXPR_PTR)]);}
     };
 }

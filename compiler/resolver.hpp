@@ -16,6 +16,7 @@ namespace compiler {
         ast::block* top_level;
         std::deque<Scope> scopes;
         ast::stmt* scope_stmt = NULL;
+        vector<ast::f_def*> f_array;
         
         public:
         ds::trie_map<ast::var_decl*> var_exports;
@@ -23,6 +24,7 @@ namespace compiler {
         ds::trie_map<ast::f_def*> f_exports;
         set<ast::f_call*> f_imports;
         StackBlockMap stack_blocks;
+        unordered_map<ast::f_def*,int> f_index;
 
         Resolver(ast::block* top_level): top_level(top_level) {}
 
@@ -35,6 +37,9 @@ namespace compiler {
                 } else if (ast::f_def* f_def = dynamic_cast<ast::f_def*>(stmt)) {
                     f_exports.insert(f_def->name.c_str())->val = f_def;
                 }
+            }
+            for (int i = 0; i < f_array.size(); i++) {
+                f_index[f_array[i]] = i;
             }
         }
 
@@ -61,11 +66,11 @@ namespace compiler {
         void resolve_block(ast::block* block) {
             scopes.push_back(Scope());
             stack_blocks[scope_stmt = block] = StackBlock();
-            resolve_block_append_scope(block);
+            resolve_block_reuse_scope(block);
             scopes.pop_back();
         }
 
-        void resolve_block_append_scope(ast::block* block) {
+        void resolve_block_reuse_scope(ast::block* block) {
             for (ast::stmt* stmt: block->stmts) {
                 resolve_stmt(stmt);
             }
@@ -88,6 +93,7 @@ namespace compiler {
                     throw std::runtime_error("Redefinition of function: "+f_def->name);
                 }
                 scopes.back().func_map.insert(f_def->name.c_str())->val = f_def;
+                f_array.push_back(f_def);
                 resolve_f_def(f_def);
             } else if (ast::c_if* c_if = dynamic_cast<ast::c_if*>(stmt)) {
                 for (ast::if_branch* branch: c_if->branches) {
@@ -100,7 +106,7 @@ namespace compiler {
                 resolve_stmt(c_for->init);
                 resolve_expr(c_for->cond);
                 resolve_stmt(c_for->upd);
-                resolve_block_append_scope(c_for->body);
+                resolve_block_reuse_scope(c_for->body);
                 scopes.pop_back();
             } else if (ast::c_while* c_while = dynamic_cast<ast::c_while*>(stmt)) {
                 resolve_expr(c_while->cond);
@@ -155,7 +161,7 @@ namespace compiler {
                 scopes.back().var_map.insert(param->var.c_str())->val = param;
                 stack_blocks[scope_stmt].add_var(param);
             }
-            resolve_block_append_scope(f_def->body);
+            resolve_block_reuse_scope(f_def->body);
             scopes.pop_back();
         }
 

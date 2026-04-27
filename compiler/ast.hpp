@@ -42,6 +42,7 @@ namespace compiler {
             virtual string to_string() const {
                 return "expr (unknown)";
             }
+            virtual bool is_trivial() const {return false;}
         };
         struct literal: expr {
             sym_t type;
@@ -52,6 +53,7 @@ namespace compiler {
             virtual string to_string() const {
                 return "literal "+value;
             }
+            virtual bool is_trivial() const {return true;}
         };
 
         // block
@@ -109,6 +111,7 @@ namespace compiler {
             virtual string to_string() const {
                 return "var "+name+(resolve? " (resolved as "+resolve->type+")" : " (unresolved)");
             }
+            virtual bool is_trivial() const {return true;}
         };
         struct asn: expr {
             var_ref* var;

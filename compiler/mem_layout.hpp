@@ -5,6 +5,8 @@
 
 namespace compiler {
     struct StackBlock {
+        static const int PREFIX = 8;
+        
         struct entry {
             ast::var_decl* var;
             int size;
@@ -14,10 +16,11 @@ namespace compiler {
         };
 
         vector<entry> layout;
-        
+
+        constexpr int RA() {return 0;}
         void add_var(ast::var_decl* var) {
             int size = 8; // TODO: change this later
-            int offset = (layout.empty()? 0 : layout.back().offset+layout.back().size);
+            int offset = (layout.empty()? PREFIX : layout.back().offset+layout.back().size);
             layout.push_back({var, size, offset});
         }
         entry* find_var(ast::var_decl* var) {
@@ -41,6 +44,10 @@ namespace compiler {
 
     struct StackModel {
         vector<StackBlock> stack_model;
+
+        StackBlock& operator[](int i) {return stack_model[i];}
+        StackBlock& top() {return stack_model.back();}
+        int size() const {return stack_model.size();}
 
         void push_block(const StackBlock& stack_block) {
             stack_model.push_back(stack_block);
