@@ -67,6 +67,7 @@ namespace compiler {
     };
 
     using StackBlockMap = unordered_map<ast::stmt*,StackBlock>;
+    using FIndexMap = unordered_map<ast::f_def*,int>;
 
     struct IfAddr {
         size_t cond_offset;
@@ -92,5 +93,9 @@ namespace compiler {
         size_t end_jump_offset;
 
         WhileAddr() {}
+    };
+
+    struct FBodyAddr {
+        vector<int> early_ret_offsets;
     };
 }

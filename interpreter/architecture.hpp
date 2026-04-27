@@ -6,20 +6,22 @@
 
 namespace interpreter {
     struct Architecture {
+        private:
         vector<inst> inst_mem;
         vector<int8_t> const_mem;
         vector<int8_t> stack_mem;
         vector<int8_t> heap_mem;
         vector<int8_t> expr_stack;
         vector<int8_t> syscall_buf;
+
+        public:
         Registers reg;
         
         Architecture() {
-            inst_mem.resize(2048);
-            const_mem.resize(2048);
-            stack_mem.resize(2048);
-            heap_mem.resize(2048);
-            expr_stack.resize(128);
+            const_mem.resize(1024);
+            stack_mem.resize(1024*16);
+            heap_mem.resize(1024);
+            expr_stack.resize(1024*8);
 
             reg.inst_ptr = inst_mem.data();
             reg.stk_ptr() = stack_mem.data()+stack_mem.size();
@@ -27,6 +29,10 @@ namespace interpreter {
             reg.expr_ptr() = expr_stack.data();
         }
 
+        void load_program(const vector<inst>& insts) {
+            inst_mem = insts;
+            reg.inst_ptr = inst_mem.data();
+        }
         void execute(inst& instruction) {
             switch (instruction.type()) {
                 case inst_t::no_op: {break;}
@@ -247,8 +253,18 @@ namespace interpreter {
         }
         void run() {
             while (reg.inst_ptr->type() != inst_t::exit) {
-                std::cout << reg.inst_ptr-inst_mem.data() << '\n';
                 execute(*reg.inst_ptr);
+            }
+        }
+        void debug_run() {
+            while (reg.inst_ptr->type() != inst_t::exit) {
+                execute(*reg.inst_ptr);
+                if (reg.expr_ptr() >= expr_stack.data()+expr_stack.size()) {
+                    throw std::runtime_error("Expression overflow");
+                }
+                if (reg.stk_ptr() < stack_mem.data()) {
+                    throw std::runtime_error("Stack overflow");
+                }
             }
         }
     };

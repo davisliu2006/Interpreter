@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <set>
@@ -41,5 +42,12 @@ namespace compiler {
             val += c;
         }
         return val;
+    }
+
+    // time
+    inline double time() {
+        using namespace std::chrono;
+        auto t = steady_clock::now();
+        return duration_cast<microseconds>(t.time_since_epoch()).count()*1e-6;
     }
 }

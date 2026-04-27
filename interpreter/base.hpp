@@ -10,6 +10,8 @@ namespace interpreter {
     using std::set, std::map, std::unordered_set, std::unordered_map;
     using std::cin, std::cout;
 
+    using compiler::time;
+
     enum class reg_t: uint8_t;
 
     enum class inst_t: uint8_t;

@@ -7,13 +7,15 @@
 namespace compiler {
     struct CodeGenerator {
         using inst = interpreter::inst;
+        using inst_t = interpreter::inst_t;
         using reg_t = interpreter::reg_t;
         
         private:
         ast::block* top_level;
-        StackBlockMap& stack_blocks;
-        unordered_map<ast::f_def*,int> f_index;
+        StackBlockMap stack_blocks;
+        FIndexMap f_index;
         StackModel stack_model;
+        std::stack<FBodyAddr> f_body_addrs;
 
         public:
         vector<inst> main_insts;
@@ -24,10 +26,48 @@ namespace compiler {
             func_insts.resize(f_index.size());
         }
 
-        void generate() {
+        vector<inst> generate() {
             generate_stmt(top_level, main_insts);
+            main_insts.push_back(inst::exit());
+            // transform calls
+            vector<int> func_global_offsets(func_insts.size());
+            int tot = main_insts.size();
+            for (int i = 0; i < func_insts.size(); i++) {
+                func_global_offsets[i] = tot;
+                tot += func_insts[i].size();
+            }
+            for (int i = 0; i < main_insts.size(); i++) { // transform calls in main
+                if (main_insts[i].type() == inst_t::call) {
+                    int call_fi = main_insts[i].imm();
+                    assert(0 <= call_fi && call_fi < func_global_offsets.size());
+                    main_insts[i] = inst::call(func_global_offsets[call_fi]-i);
+                }
+            }
+            for (int fi = 0; fi < func_insts.size(); fi++) { // transform calls in functions
+                auto& insts = func_insts[fi];
+                int f_base = func_global_offsets[fi];
+                for (int i = 0; i < insts.size(); i++) {
+                    if (insts[i].type() == inst_t::call) {
+                        int call_fi = insts[i].imm();
+                        assert(0 <= call_fi && call_fi < func_global_offsets.size());
+                        insts[i] = inst::call(func_global_offsets[call_fi]-(f_base+i));
+                    }
+                }
+            }
+            // combined insts
+            vector<inst> combined_insts;
+            for (const inst& inst: main_insts) {
+                combined_insts.push_back(inst);
+            }
+            for (const vector<inst>& insts: func_insts) {
+                for (const inst& inst: insts) {
+                    combined_insts.push_back(inst);
+                }
+            }
+            return combined_insts;
         }
 
+        private:
         void generate_stmt(ast::stmt* stmt, vector<inst>& insts) {
             auto f_stack_block = stack_blocks.find(stmt);
             if (f_stack_block != stack_blocks.end()) {
@@ -45,7 +85,19 @@ namespace compiler {
                 stack_model.push_block(stack_blocks[f_def]);
                 f_insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, -stack_model.top().size()));
                 f_insts.push_back(inst::store_64(reg_t::RA, stack_model.top().RA(), reg_t::STK_PTR));
+                f_body_addrs.push(FBodyAddr());
+                FBodyAddr& f_body_addr = f_body_addrs.top();
                 generate_block_reuse_stack(f_def->body, f_insts);
+                if (f_body_addr.early_ret_offsets.back() == f_insts.size()-1) {
+                    f_body_addr.early_ret_offsets.pop_back();
+                    f_insts.pop_back();
+                }
+                for (int i = 0; i < f_body_addr.early_ret_offsets.size(); i++) {
+                    int jump_offset = f_body_addr.early_ret_offsets[i];
+                    assert(f_insts[jump_offset].type() == inst_t::jump);
+                    f_insts[jump_offset] = inst::jump(f_insts.size()-jump_offset);
+                }
+                f_body_addrs.pop();
                 f_insts.push_back(inst::load_64(reg_t::RA, stack_model.top().RA(), reg_t::STK_PTR));
                 f_insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, stack_model.top().size()));
                 f_insts.push_back(inst::ret());
@@ -59,20 +111,25 @@ namespace compiler {
                     branch_offsets.back().cond_jump_offset = insts.size();
                     insts.push_back(inst::beqz(reg_t::RES, 0)); // placeholder
                     generate_block(branch->body, insts);
-                    branch_offsets.back().end_jump_offset = insts.size();
-                    insts.push_back(inst::jump(0)); // placeholder
+                    if (branch != c_if->branches.back()) {
+                        branch_offsets.back().end_jump_offset = insts.size();
+                        insts.push_back(inst::jump(0)); // placeholder
+                    }
                 }
                 int end_offset = insts.size();
-                for (int i = 0; i < branch_offsets.size(); i++) {
+                for (int i = 0; i < branch_offsets.size()-1; i++) {
                     insts[branch_offsets[i].cond_jump_offset] = inst::beqz(
-                        reg_t::RES, (i == branch_offsets.size()-1? 
-                            end_offset : branch_offsets[i+1].cond_offset
-                        ) - branch_offsets[i].cond_jump_offset
+                        reg_t::RES,
+                        branch_offsets[i+1].cond_offset - branch_offsets[i].cond_jump_offset
                     );
                     insts[branch_offsets[i].end_jump_offset] = inst::jump(
                         end_offset - branch_offsets[i].end_jump_offset
                     );
                 }
+                insts[branch_offsets.back().cond_jump_offset] = inst::beqz(
+                    reg_t::RES,
+                    end_offset - branch_offsets.back().cond_jump_offset
+                );
             } else if (ast::c_for* c_for = dynamic_cast<ast::c_for*>(stmt)) {
                 ForAddr for_addr;
                 generate_stmt(c_for->init, insts);
@@ -102,7 +159,9 @@ namespace compiler {
                 generate_expr(expr, insts);
             } else if (ast::f_return* f_return = dynamic_cast<ast::f_return*>(stmt)) {
                 generate_expr(f_return->expression, insts);
-                insts.push_back(inst::ret());
+                assert(!f_body_addrs.empty() && "return statement used outside function");
+                f_body_addrs.top().early_ret_offsets.push_back(insts.size());
+                insts.push_back(inst::jump(0)); // placeholder
             } else if (ast::block* block = dynamic_cast<ast::block*>(stmt)) {
                 generate_block(block, insts);
             } else {
@@ -126,8 +185,14 @@ namespace compiler {
 
         void generate_expr(ast::expr* expr, vector<inst>& insts, reg_t res_reg = reg_t::RES) {
             if (ast::var_ref* var_ref = dynamic_cast<ast::var_ref*>(expr)) {
+                if (!var_ref->resolve) {
+                    throw std::runtime_error("Unresolved variable reference: "+var_ref->name);
+                }
                 insts.push_back(inst::load_64(res_reg, stack_model.get_tot_offset(var_ref->resolve), reg_t::STK_PTR));
             } else if (ast::f_call* f_call = dynamic_cast<ast::f_call*>(expr)) {
+                if (!f_call->resolve) {
+                    throw std::runtime_error("Unresolved function call: "+f_call->func);
+                }
                 ast::f_def* f_def = f_call->resolve;
                 StackBlock& stack_block = stack_blocks[f_def];
                 for (int i = 0; i < f_def->params.size(); i++) {
@@ -140,9 +205,15 @@ namespace compiler {
             } else if (ast::literal* literal = dynamic_cast<ast::literal*>(expr)) {
                 insts.push_back(inst::load_imm(res_reg, std::stoi(literal->value)));
             } else if (ast::asn* asn = dynamic_cast<ast::asn*>(expr)) {
+                if (!asn->var->resolve) {
+                    throw std::runtime_error("Unresolved assignment target: "+asn->var->name);
+                }
                 generate_expr(asn->expression, insts, res_reg);
                 insts.push_back(inst::store_64(res_reg, stack_model.get_tot_offset(asn->var->resolve), reg_t::STK_PTR));
             } else if (ast::op_asn* op_asn = dynamic_cast<ast::op_asn*>(expr)) {
+                if (!op_asn->var->resolve) {
+                    throw std::runtime_error("Unresolved assignment target: "+op_asn->var->name);
+                }
                 int32_t offset = stack_model.get_tot_offset(op_asn->var->resolve);
                 generate_expr(op_asn->expression, insts);
                 insts.push_back(inst::load_64(reg_t::T1, offset, reg_t::STK_PTR));
@@ -209,6 +280,14 @@ namespace compiler {
                     insts.push_back(inst::eq(res_reg, reg_t::T1, reg_t::RES));
                 } else if (op_bin->op == "!=") {
                     insts.push_back(inst::ne(res_reg, reg_t::T1, reg_t::RES));
+                } else if (op_bin->op == "<") {
+                    insts.push_back(inst::lt(res_reg, reg_t::T1, reg_t::RES));
+                } else if (op_bin->op == "<=") {
+                    insts.push_back(inst::le(res_reg, reg_t::T1, reg_t::RES));
+                } else if (op_bin->op == ">") {
+                    insts.push_back(inst::lt(res_reg, reg_t::RES, reg_t::T1));
+                } else if (op_bin->op == ">=") {
+                    insts.push_back(inst::le(res_reg, reg_t::RES, reg_t::T1));
                 }
             } else if (ast::op_un* op_un = dynamic_cast<ast::op_un*>(expr)) {
                 generate_expr(op_un->expression, insts);

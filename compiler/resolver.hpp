@@ -24,7 +24,7 @@ namespace compiler {
         ds::trie_map<ast::f_def*> f_exports;
         set<ast::f_call*> f_imports;
         StackBlockMap stack_blocks;
-        unordered_map<ast::f_def*,int> f_index;
+        FIndexMap f_index;
 
         Resolver(ast::block* top_level): top_level(top_level) {}
 
