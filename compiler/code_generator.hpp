@@ -27,7 +27,7 @@ namespace compiler {
         }
 
         vector<inst> generate() {
-            generate_stmt(top_level, main_insts);
+            generate_block(top_level, main_insts);
             main_insts.push_back(inst::exit());
             // transform calls
             vector<int> func_global_offsets(func_insts.size());
@@ -68,12 +68,20 @@ namespace compiler {
         }
 
         private:
-        void generate_stmt(ast::stmt* stmt, vector<inst>& insts) {
-            auto f_stack_block = stack_blocks.find(stmt);
-            if (f_stack_block != stack_blocks.end()) {
-                stack_model.push_block(f_stack_block->second);
-                insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, -stack_model.top().size()));
+        void push_stack(ast::stmt* scope_stmt, vector<inst>& insts) {
+            auto f = stack_blocks.find(scope_stmt);
+            if (f == stack_blocks.end()) {
+                throw std::runtime_error("Missing stack block for scope");
             }
+            stack_model.push_block(f->second);
+            insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, -stack_model.top().size()));
+        }
+        void pop_stack(vector<inst>& insts) {
+            insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, stack_model.top().size()));
+            stack_model.pop_block();
+        }
+
+        void generate_stmt(ast::stmt* stmt, vector<inst>& insts) {
             if (ast::var_decl* var_decl = dynamic_cast<ast::var_decl*>(stmt)) {
                 if (ast::var_def* var_def = dynamic_cast<ast::var_def*>(var_decl)) {
                     generate_expr(var_def->expression, insts);
@@ -82,13 +90,20 @@ namespace compiler {
             } else if (ast::f_def* f_def = dynamic_cast<ast::f_def*>(stmt)) {
                 int index = f_index[f_def];
                 auto& f_insts = func_insts[index];
-                stack_model.push_block(stack_blocks[f_def]);
-                f_insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, -stack_model.top().size()));
+                push_stack(f_def, f_insts);
                 f_insts.push_back(inst::store_64(reg_t::RA, stack_model.top().RA(), reg_t::STK_PTR));
+                for (int i = int(f_def->params.size())-1; i >= 0; i--) {
+                    ast::var_decl* param = f_def->params[i];
+                    f_insts.push_back(inst::pop_expr(reg_t::RES));
+                    f_insts.push_back(inst::store_64(
+                        reg_t::RES, stack_model.get_tot_offset(param), reg_t::STK_PTR
+                    ));
+                }
                 f_body_addrs.push(FBodyAddr());
                 FBodyAddr& f_body_addr = f_body_addrs.top();
                 generate_block_reuse_stack(f_def->body, f_insts);
-                if (f_body_addr.early_ret_offsets.back() == f_insts.size()-1) {
+                if (!f_body_addr.early_ret_offsets.empty()
+                && f_body_addr.early_ret_offsets.back() == int(f_insts.size())-1) {
                     f_body_addr.early_ret_offsets.pop_back();
                     f_insts.pop_back();
                 }
@@ -99,9 +114,8 @@ namespace compiler {
                 }
                 f_body_addrs.pop();
                 f_insts.push_back(inst::load_64(reg_t::RA, stack_model.top().RA(), reg_t::STK_PTR));
-                f_insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, stack_model.top().size()));
+                pop_stack(f_insts);
                 f_insts.push_back(inst::ret());
-                stack_model.pop_block();
             } else if (ast::c_if* c_if = dynamic_cast<ast::c_if*>(stmt)) {
                 vector<IfAddr> branch_offsets;
                 for (ast::if_branch* branch: c_if->branches) {
@@ -117,7 +131,7 @@ namespace compiler {
                     }
                 }
                 int end_offset = insts.size();
-                for (int i = 0; i < branch_offsets.size()-1; i++) {
+                for (int i = 0; i < int(branch_offsets.size())-1; i++) {
                     insts[branch_offsets[i].cond_jump_offset] = inst::beqz(
                         reg_t::RES,
                         branch_offsets[i+1].cond_offset - branch_offsets[i].cond_jump_offset
@@ -131,6 +145,7 @@ namespace compiler {
                     end_offset - branch_offsets.back().cond_jump_offset
                 );
             } else if (ast::c_for* c_for = dynamic_cast<ast::c_for*>(stmt)) {
+                push_stack(c_for, insts);
                 ForAddr for_addr;
                 generate_stmt(c_for->init, insts);
                 for_addr.cond_offset = insts.size();
@@ -144,6 +159,7 @@ namespace compiler {
                 int end_offset = insts.size();
                 insts[for_addr.cond_jump_offset] = inst::beqz(reg_t::RES, end_offset-for_addr.cond_jump_offset);
                 insts[for_addr.end_jump_offset] = inst::jump(for_addr.cond_offset-for_addr.end_jump_offset);
+                pop_stack(insts);
             } else if (ast::c_while* c_while = dynamic_cast<ast::c_while*>(stmt)) {
                 WhileAddr while_addr;
                 while_addr.cond_offset = insts.size();
@@ -167,14 +183,12 @@ namespace compiler {
             } else {
                 throw std::runtime_error("Unknown case");
             }
-            if (f_stack_block != stack_blocks.end()) {
-                insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, stack_model.top().size()));
-                stack_model.pop_block();
-            }
         }
 
         void generate_block(ast::block* block, vector<inst>& insts) {
+            push_stack(block, insts);
             generate_block_reuse_stack(block, insts);
+            pop_stack(insts);
         }
 
         void generate_block_reuse_stack(ast::block* block, vector<inst>& insts) {
@@ -194,12 +208,10 @@ namespace compiler {
                     throw std::runtime_error("Unresolved function call: "+f_call->func);
                 }
                 ast::f_def* f_def = f_call->resolve;
-                StackBlock& stack_block = stack_blocks[f_def];
-                for (int i = 0; i < f_def->params.size(); i++) {
-                    ast::var_decl* param = f_def->params[i];
+                for (int i = 0; i < f_call->args.size(); i++) {
                     ast::expr* arg = f_call->args[i];
                     generate_expr(arg, insts);
-                    insts.push_back(inst::store_64(reg_t::RES, stack_block.find_var(param)->offset-stack_block.size(), reg_t::STK_PTR));
+                    insts.push_back(inst::push_expr(reg_t::RES));
                 }
                 insts.push_back(inst::call(f_index[f_def])); // placeholder
             } else if (ast::literal* literal = dynamic_cast<ast::literal*>(expr)) {
