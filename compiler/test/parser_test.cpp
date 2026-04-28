@@ -17,7 +17,8 @@ string display_str(int x) {
 
 vector<Test> tests = {
     Test("brackets", []() {
-        Parser parser(tokenizer::tokenize(";[(1+2),{3,4,[;;]}],({5,6});"));
+        auto tokens = tokenizer::tokenize(";[(1+2),{3,4,[;;]}],({5,6});");
+        Parser parser(tokens);
         // --------------------------------0123456789012345678901234567
         // --------------------------------0         1         2
         cout << "    ";
@@ -54,7 +55,8 @@ vector<Test> tests = {
     }),
     Test("while", []() {
         try {
-            Parser parser(tokenizer::tokenize("while (x == 0) {y = 1;}"));
+            auto tokens = tokenizer::tokenize("while (x == 0) {y = 1;}");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             assert(dynamic_cast<ast::c_while*>(ast));
@@ -66,7 +68,8 @@ vector<Test> tests = {
     }),
     Test("for", []() {
         try {
-            Parser parser(tokenizer::tokenize("for (int i = 0; i < 10; i++) {}"));
+            auto tokens = tokenizer::tokenize("for (int i = 0; i < 10; i++) {}");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             assert(dynamic_cast<ast::c_for*>(ast));
@@ -78,7 +81,8 @@ vector<Test> tests = {
     }),
     Test("if_fallback", []() {
         try {
-            Parser parser(tokenizer::tokenize("if (x == 0) {y = 1;}\nelse if (x == 1) {y = 2;}\nelse {y = 3;}"));
+            auto tokens = tokenizer::tokenize("if (x == 0) {y = 1;}\nelse if (x == 1) {y = 2;}\nelse {y = 3;}");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::c_if* c_if = dynamic_cast<ast::c_if*>(ast);
@@ -92,7 +96,8 @@ vector<Test> tests = {
     }),
     Test("if_no_fallback", []() {
         try {
-            Parser parser(tokenizer::tokenize("if (x == 0) {y = 1;}\nelse if (x == 1) {y = 2;}\nelse if (x == 2) {y = 3;}"));
+            auto tokens = tokenizer::tokenize("if (x == 0) {y = 1;}\nelse if (x == 1) {y = 2;}\nelse if (x == 2) {y = 3;}");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::c_if* c_if = dynamic_cast<ast::c_if*>(ast);
@@ -106,7 +111,8 @@ vector<Test> tests = {
     }),
     Test("f_call", []() {
         try {
-            Parser parser(tokenizer::tokenize("f(1+2, 3, abc)"));
+            auto tokens = tokenizer::tokenize("f(1+2, 3, abc)");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::f_call* f_call = dynamic_cast<ast::f_call*>(ast);
@@ -120,7 +126,8 @@ vector<Test> tests = {
     }),
     Test("var_decl", []() {
         try {
-            Parser parser(tokenizer::tokenize("int xyz"));
+            auto tokens = tokenizer::tokenize("int xyz");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             assert(dynamic_cast<ast::var_decl*>(ast));
@@ -132,7 +139,8 @@ vector<Test> tests = {
     }),
     Test("expr_binary", []() {
         try {
-            Parser parser(tokenizer::tokenize("(a+b)*(c+d)+f/(g-h)"));
+            auto tokens = tokenizer::tokenize("(a+b)*(c+d)+f/(g-h)");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::op_bin* expr = dynamic_cast<ast::op_bin*>(ast);
@@ -153,7 +161,8 @@ vector<Test> tests = {
     }),
     Test("expr_with_f_call", []() {
         try {
-            Parser parser(tokenizer::tokenize("f(a+b, c*d) + g(e)/f"));
+            auto tokens = tokenizer::tokenize("f(a+b, c*d) + g(e)/f");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::op_bin* expr = dynamic_cast<ast::op_bin*>(ast);
@@ -172,7 +181,8 @@ vector<Test> tests = {
     }),
     Test("expr_asn", []() {
         try {
-            Parser parser(tokenizer::tokenize("x = 1+2"));
+            auto tokens = tokenizer::tokenize("x = 1+2");
+            Parser parser(tokens);
             auto* ast = parser.parse_expr(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::asn* asn = dynamic_cast<ast::asn*>(ast);
@@ -188,7 +198,8 @@ vector<Test> tests = {
     }),
     Test("expr_op_asn", []() {
         try {
-            Parser parser(tokenizer::tokenize("x += y*2"));
+            auto tokens = tokenizer::tokenize("x += y*2");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::op_asn* op_asn = dynamic_cast<ast::op_asn*>(ast);
@@ -205,7 +216,8 @@ vector<Test> tests = {
     }),
     Test("expr_unary", []() {
         try {
-            Parser parser(tokenizer::tokenize("-x+~y*z"));
+            auto tokens = tokenizer::tokenize("-x+~y*z");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::op_bin* expr = dynamic_cast<ast::op_bin*>(ast);
@@ -224,7 +236,8 @@ vector<Test> tests = {
     }),
     Test("block_simple", []() {
         try {
-            Parser parser(tokenizer::tokenize("int x = 1; int y = 2;"));
+            auto tokens = tokenizer::tokenize("int x = 1; int y = 2;");
+            Parser parser(tokens);
             auto* ast = parser.parse_block(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             assert(ast->stmts.size() == 2);
@@ -239,7 +252,8 @@ vector<Test> tests = {
     }),
     Test("f_def", []() {
         try {
-            Parser parser(tokenizer::tokenize("int f(int x, int y) {return x+y;}"));
+            auto tokens = tokenizer::tokenize("int f(int x, int y) {return x+y;}");
+            Parser parser(tokens);
             auto* ast = parser.parse_stmt(0, parser.tokens.size());
             cout << ast->to_formatted_string() << '\n';
             ast::f_def* f_def = dynamic_cast<ast::f_def*>(ast);

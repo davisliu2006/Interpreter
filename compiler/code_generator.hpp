@@ -12,8 +12,8 @@ namespace compiler {
         
         private:
         ast::block* top_level;
-        StackBlockMap stack_blocks;
-        FIndexMap f_index;
+        StackBlockMap& stack_blocks;
+        FIndexMap& f_index;
         StackModel stack_model;
         std::stack<FBodyAddr> f_body_addrs;
 
@@ -74,10 +74,14 @@ namespace compiler {
                 throw std::runtime_error("Missing stack block for scope");
             }
             stack_model.push_block(f->second);
-            insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, -stack_model.top().size()));
+            if (stack_model.top().size() > 0) {
+                insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, -stack_model.top().size()));
+            }
         }
         void pop_stack(vector<inst>& insts) {
-            insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, stack_model.top().size()));
+            if (stack_model.top().size() > 0) {
+                insts.push_back(inst::addi(reg_t::STK_PTR, reg_t::STK_PTR, stack_model.top().size()));
+            }
             stack_model.pop_block();
         }
 
@@ -161,16 +165,18 @@ namespace compiler {
                 insts[for_addr.end_jump_offset] = inst::jump(for_addr.cond_offset-for_addr.end_jump_offset);
                 pop_stack(insts);
             } else if (ast::c_while* c_while = dynamic_cast<ast::c_while*>(stmt)) {
+                push_stack(c_while, insts);
                 WhileAddr while_addr;
                 while_addr.cond_offset = insts.size();
                 generate_expr(c_while->cond, insts);
                 while_addr.cond_jump_offset = insts.size();
                 insts.push_back(inst::beqz(reg_t::RES, 0)); // placeholder
-                generate_block(c_while->body, insts);
+                generate_block_reuse_stack(c_while->body, insts);
                 while_addr.end_jump_offset = insts.size();
                 insts.push_back(inst::jump(while_addr.cond_offset-while_addr.end_jump_offset));
                 int end_offset = insts.size();
                 insts[while_addr.cond_jump_offset] = inst::beqz(reg_t::RES, end_offset-while_addr.cond_jump_offset);
+                pop_stack(insts);
             } else if (ast::expr* expr = dynamic_cast<ast::expr*>(stmt)) {
                 generate_expr(expr, insts);
             } else if (ast::f_return* f_return = dynamic_cast<ast::f_return*>(stmt)) {

@@ -63,11 +63,20 @@ namespace compiler {
             return NULL;
         }
 
-        void resolve_block(ast::block* block) {
+        void push_scope(ast::stmt* stmt) {
             scopes.push_back(Scope());
-            stack_blocks[scope_stmt = block] = StackBlock();
-            resolve_block_reuse_scope(block);
+            stack_blocks[scope_stmt = stmt] = StackBlock(
+                dynamic_cast<ast::f_def*>(stmt) != NULL
+            );
+        }
+        void pop_scope() {
             scopes.pop_back();
+        }
+
+        void resolve_block(ast::block* block) {
+            push_scope(block);
+            resolve_block_reuse_scope(block);
+            pop_scope();
         }
 
         void resolve_block_reuse_scope(ast::block* block) {
@@ -101,16 +110,17 @@ namespace compiler {
                     resolve_block(branch->body);
                 }
             } else if (ast::c_for* c_for = dynamic_cast<ast::c_for*>(stmt)) {
-                scopes.push_back(Scope());
-                stack_blocks[scope_stmt = c_for] = StackBlock();
+                push_scope(c_for);
                 resolve_stmt(c_for->init);
                 resolve_expr(c_for->cond);
                 resolve_stmt(c_for->upd);
                 resolve_block_reuse_scope(c_for->body);
-                scopes.pop_back();
+                pop_scope();
             } else if (ast::c_while* c_while = dynamic_cast<ast::c_while*>(stmt)) {
+                push_scope(c_while);
                 resolve_expr(c_while->cond);
-                resolve_block(c_while->body);
+                resolve_block_reuse_scope(c_while->body);
+                pop_scope();
             } else if (ast::expr* expr = dynamic_cast<ast::expr*>(stmt)) {
                 resolve_expr(expr);
             } else if (ast::f_return* f_return = dynamic_cast<ast::f_return*>(stmt)) {
@@ -155,14 +165,13 @@ namespace compiler {
         }
 
         void resolve_f_def(ast::f_def* f_def) {
-            scopes.push_back(Scope());
-            stack_blocks[scope_stmt = f_def] = StackBlock();
+            push_scope(f_def);
             for (ast::var_decl* param: f_def->params) {
                 scopes.back().var_map.insert(param->var.c_str())->val = param;
                 stack_blocks[scope_stmt].add_var(param);
             }
             resolve_block_reuse_scope(f_def->body);
-            scopes.pop_back();
+            pop_scope();
         }
 
         void resolve_f_call(ast::f_call* f_call) {

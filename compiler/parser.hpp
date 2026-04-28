@@ -6,7 +6,7 @@
 
 namespace compiler {
     struct Parser {
-        vector<Token> tokens;
+        vector<Token>& tokens;
         vector<int> closing_bracket;
         vector<int> next_semicolon;
         vector<int> next_comma;
@@ -20,7 +20,7 @@ namespace compiler {
             return std::min({cb, ns, nc});
         }
 
-        Parser(vector<Token> tokens): tokens(tokens), TOK_SIZE(tokens.size()) {
+        Parser(vector<Token>& tokens): tokens(tokens), TOK_SIZE(tokens.size()) {
             closing_bracket = vector<int>(TOK_SIZE, INT_MAX);
             next_semicolon = vector<int>(TOK_SIZE, INT_MAX);
             next_comma = vector<int>(TOK_SIZE, INT_MAX);

@@ -5,8 +5,8 @@
 
 namespace compiler {
     struct StackBlock {
-        static const int PREFIX = 8;
-        
+        static const int FUNC_PREFIX = 8;
+
         struct entry {
             ast::var_decl* var;
             int size;
@@ -15,12 +15,16 @@ namespace compiler {
             entry(ast::var_decl* var, int size, int offset): var(var), size(size), offset(offset) {}
         };
 
+        int prefix;
         vector<entry> layout;
 
+        StackBlock(bool is_func = true): prefix(is_func? FUNC_PREFIX : 0) {}
+
         constexpr int RA() {return 0;}
+
         void add_var(ast::var_decl* var) {
             int size = 8; // TODO: change this later
-            int offset = (layout.empty()? PREFIX : layout.back().offset+layout.back().size);
+            int offset = (layout.empty()? prefix : layout.back().offset+layout.back().size);
             layout.push_back({var, size, offset});
         }
         entry* find_var(ast::var_decl* var) {
@@ -30,7 +34,7 @@ namespace compiler {
             return NULL;
         }
         int size() const {
-            return layout.empty()? 0 : layout.back().offset+layout.back().size;
+            return layout.empty()? prefix : layout.back().offset+layout.back().size;
         }
     };
     inline std::ostream& operator<<(std::ostream& out, const StackBlock& stack_block) {

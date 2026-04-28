@@ -33,6 +33,7 @@ namespace interpreter {
             inst_mem = insts;
             reg.inst_ptr = inst_mem.data();
         }
+
         void execute(inst& instruction) {
             switch (instruction.type()) {
                 case inst_t::no_op: {break;}
@@ -251,6 +252,7 @@ namespace interpreter {
             }
             reg.inst_ptr++;
         }
+
         void run() {
             while (reg.inst_ptr->type() != inst_t::exit) {
                 execute(*reg.inst_ptr);
@@ -266,6 +268,19 @@ namespace interpreter {
                     throw std::runtime_error("Stack overflow");
                 }
             }
+        }
+        void profile_run() {
+            static int stack_usage = 0;
+            static int expr_usage = 0;
+            while (reg.inst_ptr->type() != inst_t::exit) {
+                execute(*reg.inst_ptr);
+                int curr_stack = stack_mem.data()+stack_mem.size()-reg.stk_ptr();
+                int curr_expr = reg.expr_ptr()-expr_stack.data();
+                stack_usage = std::max(stack_usage, curr_stack);
+                expr_usage = std::max(expr_usage, curr_expr);
+            }
+            cout << "Stack usage: " << stack_usage*0.001 << "kB\n";
+            cout << "Expr usage: " << expr_usage*0.001 << "kB\n";
         }
     };
 }

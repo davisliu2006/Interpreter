@@ -19,7 +19,11 @@ vector<Test> tests = {
             "}\n"
             "fact(7);\n"
         ;
-        arch.load_program(compiler::compile(code));
+        auto insts = compiler::compile(code);
+        for (const auto& inst: insts) {
+            cout << inst.to_string() << '\n';
+        }
+        arch.load_program(insts);
         arch.run();
         cout << arch.reg[reg_t::RES] << '\n';
         assert(arch.reg[reg_t::RES] == 5040);
@@ -34,7 +38,11 @@ vector<Test> tests = {
             "}\n"
             "fib(20);\n"
         ;
-        arch.load_program(compiler::compile(code));
+        auto insts = compiler::compile(code);
+        for (const auto& inst: insts) {
+            cout << inst.to_string() << '\n';
+        }
+        arch.load_program(insts);
         double t0 = time();
         arch.run();
         double t1 = time();
@@ -52,7 +60,31 @@ vector<Test> tests = {
             "}\n"
             "fib(34);\n"
         ;
-        arch.load_program(compiler::compile(code));
+        auto insts = compiler::compile(code);
+        for (const auto& inst: insts) {
+            cout << inst.to_string() << '\n';
+        }
+        arch.load_program(insts);
+        double t0 = time();
+        arch.run();
+        double t1 = time();
+        cout << "Prgoram ran in: " << (t1-t0)*1000 << "ms\n";
+        cout << arch.reg[reg_t::RES] << '\n';
+    }),
+    Test("stress_loop", []() {
+        Architecture arch;
+        string code =
+            "int x = 0;\n"
+            "for (int i = 0; i <= 1000000; i++) {\n"
+            "    x += i;\n"
+            "}\n"
+            "x;\n"
+        ;
+        auto insts = compiler::compile(code);
+        for (const auto& inst: insts) {
+            cout << inst.to_string() << '\n';
+        }
+        arch.load_program(insts);
         double t0 = time();
         arch.run();
         double t1 = time();

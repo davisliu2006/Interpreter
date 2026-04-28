@@ -93,6 +93,7 @@ namespace interpreter {
         reg_t rs1() const {return reg_t((bits >> 16) & 0xff);}
         reg_t rs2() const {return reg_t((bits >> 24) & 0xff);}
         int32_t imm() const {return int32_t(bits >> 32);}
+        void set_imm(int32_t imm) {(bits &= 0x00000000ffffffff) |= uint64_t(imm)<<32;}
 
         string to_string() const {
             using interpreter::to_string, std::to_string;
@@ -243,5 +244,13 @@ namespace interpreter {
         static inst pop_expr(reg_t rd) {
             return inst(inst_t::pop_expr, rd, reg_t::ZERO, reg_t::ZERO, 0);
         }
+
+        static bool is_relative_jump(inst_t type) {
+            return type == inst_t::jump
+                || type == inst_t::bnez
+                || type == inst_t::beqz
+                || type == inst_t::call;
+        }
+        bool is_relative_jump() const {return is_relative_jump(type());}
     };
 }

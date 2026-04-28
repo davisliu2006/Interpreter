@@ -6,6 +6,7 @@
 #include "../tokenizer.hpp"
 #include "../parser.hpp"
 #include "../resolver.hpp"
+#include "../ast_optimizer.hpp"
 #include "../code_generator.hpp"
 
 using namespace std;
@@ -20,11 +21,14 @@ vector<Test> tests = {
                 "    x = 1;\n"
                 "}\n"
             ;
-            Parser parser(tokenizer::tokenize(code));
+            auto tokens = tokenizer::tokenize(code);
+            Parser parser(tokens);
             auto* ast = parser.parse_block(0, parser.tokens.size());
             Resolver resolver(ast);
-            cout << ast->to_formatted_string() << '\n';
             resolver.resolve();
+            AstOptimizer ast_optimizer(ast);
+            ast_optimizer.optimize();
+            cout << ast->to_formatted_string() << '\n';
             CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
             generator.generate();
             for (const interpreter::inst& inst: generator.main_insts) {
@@ -43,10 +47,14 @@ vector<Test> tests = {
                 "x++;\n"
                 "x--;\n"
             ;
-            Parser parser(tokenizer::tokenize(code));
+            auto tokens = tokenizer::tokenize(code);
+            Parser parser(tokens);
             auto* ast = parser.parse_block(0, parser.tokens.size());
             Resolver resolver(ast);
             resolver.resolve();
+            AstOptimizer ast_optimizer(ast);
+            ast_optimizer.optimize();
+            cout << ast->to_formatted_string() << '\n';
             CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
             generator.generate();
             for (const interpreter::inst& inst: generator.main_insts) {
@@ -65,10 +73,14 @@ vector<Test> tests = {
                 "int y = -x + ~x;\n"
                 "int z = !x;\n"
             ;
-            Parser parser(tokenizer::tokenize(code));
+            auto tokens = tokenizer::tokenize(code);
+            Parser parser(tokens);
             auto* ast = parser.parse_block(0, parser.tokens.size());
             Resolver resolver(ast);
             resolver.resolve();
+            AstOptimizer ast_optimizer(ast);
+            ast_optimizer.optimize();
+            cout << ast->to_formatted_string() << '\n';
             CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
             generator.generate();
             for (const interpreter::inst& inst: generator.main_insts) {
@@ -87,14 +99,18 @@ vector<Test> tests = {
                 "    if (x < 0) {\n"
                 "        return -1;\n"
                 "    }\n"
-                "    return 1;\n"
+                "    return 1+1;\n"
                 "}\n"
                 "f(0);\n"
             ;
-            Parser parser(tokenizer::tokenize(code));
+            auto tokens = tokenizer::tokenize(code);
+            Parser parser(tokens);
             auto* ast = parser.parse_block(0, parser.tokens.size());
             Resolver resolver(ast);
             resolver.resolve();
+            AstOptimizer ast_optimizer(ast);
+            ast_optimizer.optimize();
+            cout << ast->to_formatted_string() << '\n';
             CodeGenerator generator(ast, resolver.stack_blocks, resolver.f_index);
             generator.generate();
             bool has_call = false;
