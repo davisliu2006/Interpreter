@@ -175,11 +175,11 @@ namespace interpreter {
         static inst b_not(reg_t rd, reg_t rs1) {
             return inst(inst_t::b_not, rd, rs1, reg_t::ZERO, 0);
         }
-        static inst b_sli(reg_t rd, reg_t rs1, reg_t rs2) {
-            return inst(inst_t::b_sli, rd, rs1, rs2, 0);
+        static inst b_sli(reg_t rd, reg_t rs1, int32_t imm) {
+            return inst(inst_t::b_sli, rd, rs1, reg_t::ZERO, imm);
         }
-        static inst b_sri(reg_t rd, reg_t rs1, reg_t rs2) {
-            return inst(inst_t::b_sri, rd, rs1, rs2, 0);
+        static inst b_sri(reg_t rd, reg_t rs1, int32_t imm) {
+            return inst(inst_t::b_sri, rd, rs1, reg_t::ZERO, imm);
         }
         static inst b_andi(reg_t rd, reg_t rs1, int32_t imm) {
             return inst(inst_t::b_andi, rd, rs1, reg_t::ZERO, imm);

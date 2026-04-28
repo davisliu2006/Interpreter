@@ -233,31 +233,26 @@ namespace compiler {
                     throw std::runtime_error("Unresolved assignment target: "+op_asn->var->name);
                 }
                 int32_t offset = stack_model.get_tot_offset(op_asn->var->resolve);
+                if (ast::literal* rhs_lit = dynamic_cast<ast::literal*>(op_asn->expression)) {
+                    if (rhs_lit->type == sym_t::INT && supports_imm(op_asn->op)) {
+                        insts.push_back(inst::load_64(reg_t::RES, offset, reg_t::STK_PTR));
+                        insts.push_back(binary_op_imm(op_asn->op, res_reg, reg_t::RES, std::stoi(rhs_lit->value)));
+                        insts.push_back(inst::store_64(res_reg, offset, reg_t::STK_PTR));
+                        return;
+                    }
+                }
                 generate_expr(op_asn->expression, insts);
                 insts.push_back(inst::load_64(reg_t::T1, offset, reg_t::STK_PTR));
-                if (op_asn->op == "+") {
-                    insts.push_back(inst::add(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "-") {
-                    insts.push_back(inst::sub(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "*") {
-                    insts.push_back(inst::mul(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "/") {
-                    insts.push_back(inst::div(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "%") {
-                    insts.push_back(inst::mod(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "<<") {
-                    insts.push_back(inst::b_sl(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == ">>") {
-                    insts.push_back(inst::b_sr(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "&") {
-                    insts.push_back(inst::b_and(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "^") {
-                    insts.push_back(inst::b_xor(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_asn->op == "|") {
-                    insts.push_back(inst::b_or(res_reg, reg_t::T1, reg_t::RES));
-                }
+                insts.push_back(binary_op(op_asn->op, res_reg, reg_t::T1, reg_t::RES));
                 insts.push_back(inst::store_64(res_reg, offset, reg_t::STK_PTR));
             } else if (ast::op_bin* op_bin = dynamic_cast<ast::op_bin*>(expr)) {
+                if (ast::literal* rhs_lit = dynamic_cast<ast::literal*>(op_bin->rhs)) {
+                    if (rhs_lit->type == sym_t::INT && supports_imm(op_bin->op)) {
+                        generate_expr(op_bin->lhs, insts);
+                        insts.push_back(binary_op_imm(op_bin->op, res_reg, reg_t::RES, std::stoi(rhs_lit->value)));
+                        return;
+                    }
+                }
                 if (op_bin->rhs->is_trivial()) {
                     generate_expr(op_bin->lhs, insts, reg_t::T1);
                     generate_expr(op_bin->rhs, insts);
@@ -270,57 +265,59 @@ namespace compiler {
                     generate_expr(op_bin->rhs, insts);
                     insts.push_back(inst::pop_expr(reg_t::T1));
                 }
-                if (op_bin->op == "+") {
-                    insts.push_back(inst::add(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "-") {
-                    insts.push_back(inst::sub(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "*") {
-                    insts.push_back(inst::mul(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "/") {
-                    insts.push_back(inst::div(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "%") {
-                    insts.push_back(inst::mod(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "<<") {
-                    insts.push_back(inst::b_sl(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == ">>") {
-                    insts.push_back(inst::b_sr(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "&") {
-                    insts.push_back(inst::b_and(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "^") {
-                    insts.push_back(inst::b_xor(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "|") {
-                    insts.push_back(inst::b_or(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "&&") {
-                    insts.push_back(inst::b_and(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "||") {
-                    insts.push_back(inst::b_or(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "==") {
-                    insts.push_back(inst::eq(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "!=") {
-                    insts.push_back(inst::ne(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "<") {
-                    insts.push_back(inst::lt(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == "<=") {
-                    insts.push_back(inst::le(res_reg, reg_t::T1, reg_t::RES));
-                } else if (op_bin->op == ">") {
-                    insts.push_back(inst::lt(res_reg, reg_t::RES, reg_t::T1));
-                } else if (op_bin->op == ">=") {
-                    insts.push_back(inst::le(res_reg, reg_t::RES, reg_t::T1));
-                }
+                insts.push_back(binary_op(op_bin->op, res_reg, reg_t::T1, reg_t::RES));
             } else if (ast::op_un* op_un = dynamic_cast<ast::op_un*>(expr)) {
                 generate_expr(op_un->expression, insts);
-                if (op_un->op == "-") {
-                    insts.push_back(inst::sub(res_reg, reg_t::ZERO, reg_t::RES));
-                } else if (op_un->op == "~") {
-                    insts.push_back(inst::b_not(res_reg, reg_t::RES));
-                } else if (op_un->op == "!") {
-                    insts.push_back(inst::eq(res_reg, reg_t::RES, reg_t::ZERO));
-                } else {
-                    throw std::runtime_error("Unsupported unary operator: "+op_un->op);
-                }
+                insts.push_back(unary_op(op_un->op, res_reg, reg_t::RES));
             } else {
                 throw std::runtime_error("Unknown case");
             }
+        }
+
+        inst binary_op(const string& op, reg_t rd, reg_t rs1, reg_t rs2) const {
+            if (op == "+") {return inst::add(rd, rs1, rs2);}
+            else if (op == "-") {return inst::sub(rd, rs1, rs2);}
+            else if (op == "*") {return inst::mul(rd, rs1, rs2);}
+            else if (op == "/") {return inst::div(rd, rs1, rs2);}
+            else if (op == "%") {return inst::mod(rd, rs1, rs2);}
+            else if (op == "<<") {return inst::b_sl(rd, rs1, rs2);}
+            else if (op == ">>") {return inst::b_sr(rd, rs1, rs2);}
+            else if (op == "&") {return inst::b_and(rd, rs1, rs2);}
+            else if (op == "^") {return inst::b_xor(rd, rs1, rs2);}
+            else if (op == "|") {return inst::b_or(rd, rs1, rs2);}
+            else if (op == "&&") {return inst::b_and(rd, rs1, rs2);}
+            else if (op == "||") {return inst::b_or(rd, rs1, rs2);}
+            else if (op == "==") {return inst::eq(rd, rs1, rs2);}
+            else if (op == "!=") {return inst::ne(rd, rs1, rs2);}
+            else if (op == "<") {return inst::lt(rd, rs1, rs2);}
+            else if (op == "<=") {return inst::le(rd, rs1, rs2);}
+            else if (op == ">") {return inst::lt(rd, rs2, rs1);}
+            else if (op == ">=") {return inst::le(rd, rs2, rs1);}
+            else {throw std::runtime_error("Unsupported binary operator: "+op);}
+        }
+        bool supports_imm(const string& op) const {
+            return op == "+" || op == "-" || op == "*" || op == "/" || op == "%"
+                || op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^";
+        }
+        inst binary_op_imm(const string& op, reg_t rd, reg_t rs1, int32_t imm) const {
+            if (op == "+") {return inst::addi(rd, rs1, imm);}
+            else if (op == "-") {return inst::addi(rd, rs1, -imm);}
+            else if (op == "*") {return inst::muli(rd, rs1, imm);}
+            else if (op == "/") {return inst::divi(rd, rs1, imm);}
+            else if (op == "%") {return inst::modi(rd, rs1, imm);}
+            else if (op == "<<") {return inst::b_sli(rd, rs1, imm);}
+            else if (op == ">>") {return inst::b_sri(rd, rs1, imm);}
+            else if (op == "&") {return inst::b_andi(rd, rs1, imm);}
+            else if (op == "|") {return inst::b_ori(rd, rs1, imm);}
+            else if (op == "^") {return inst::b_xori(rd, rs1, imm);}
+            else {throw std::runtime_error("Unsupported binary immediate operator: "+op);}
+        }
+
+        inst unary_op(const string& op, reg_t rd, reg_t rs1) const {
+            if (op == "-") {return inst::sub(rd, reg_t::ZERO, rs1);}
+            else if (op == "~") {return inst::b_not(rd, rs1);}
+            else if (op == "!") {return inst::eq(rd, rs1, reg_t::ZERO);}
+            else {throw std::runtime_error("Unsupported unary operator: "+op);}
         }
     };
 }
