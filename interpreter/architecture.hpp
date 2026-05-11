@@ -20,7 +20,7 @@ namespace interpreter {
         Architecture() {
             const_mem.resize(1024);
             stack_mem.resize(1024*16);
-            heap_mem.resize(1024);
+            heap_mem.resize(1024*16);
             expr_stack.resize(1024*8);
 
             reg.inst_ptr = inst_mem.data();
@@ -270,8 +270,9 @@ namespace interpreter {
             }
         }
         void profile_run() {
-            static int stack_usage = 0;
-            static int expr_usage = 0;
+            static int stack_usage = 0, expr_usage = 0;
+            stack_usage = 0;
+            expr_usage = 0;
             while (reg.inst_ptr->type() != inst_t::exit) {
                 execute(*reg.inst_ptr);
                 int curr_stack = stack_mem.data()+stack_mem.size()-reg.stk_ptr();
