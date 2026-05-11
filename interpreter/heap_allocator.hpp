@@ -34,7 +34,7 @@ namespace interpreter {
             block_next_free(dummy_last) = NULL;
         }
 
-        void simple_alloc(size_t bytes) {
+        int8_t* simple_alloc(int64_t bytes) {
             int8_t* prev = dummy_first;
             int8_t* block = block_next_free(prev);
             while (block_size(block) < bytes) {
@@ -54,6 +54,7 @@ namespace interpreter {
             } else {
                 block_next_free(prev) = block_next_free(block);
             }
+            return block;
         }
         void simple_free(int8_t* block) {
             int8_t* prev = dummy_first;
@@ -62,8 +63,8 @@ namespace interpreter {
                 prev = next;
                 next = block_next_free(next);
             }
-            if (block_next_imm(prev) == block) {
-                if (block_next_imm(block) == next) {
+            if (block_next_imm(prev) == block && prev != dummy_first) {
+                if (block_next_imm(block) == next && next != dummy_last) {
                     // merge with prev and next
                     block_size(prev) += block_size_with_prefix(block) + block_size_with_prefix(next);
                     block_next_free(prev) = block_next_free(next);
@@ -72,14 +73,15 @@ namespace interpreter {
                     block_size(prev) += block_size_with_prefix(block);
                     block_next_free(prev) = next;
                 }
-            } else if (block_next_imm(block) == next) {
+            } else if (block_next_imm(block) == next && next != dummy_last) {
                 // merge with next
                 block_size(block) += block_size_with_prefix(next);
                 block_next_free(block) = block_next_free(next);
+                block_next_free(prev) = block;
             } else {
                 // don't merge with anything but connect blocks
+                block_next_free(block) = next;
                 block_next_free(prev) = block;
-                block_next_free(block) = block_next_free(prev);
             }
         }
     };
