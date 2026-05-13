@@ -13,11 +13,9 @@ namespace interpreter {
     enum class reg_t: uint8_t {
         ZERO = 0,
         STK_PTR = 1,
-        HEAP_PTR = 2,
-        EXPR_PTR = 3,
-        RA = 4,
-        RES = 5,
-        RES_TYPE = 6,
+        EXPR_PTR = 2,
+        RA = 3,
+        RES = 4,
         T1 = 16,
         T2 = 17,
         T3 = 18,
@@ -28,11 +26,9 @@ namespace interpreter {
         switch (x) {
             case reg_t::ZERO: {return "ZERO";}
             case reg_t::STK_PTR: {return "STK_PTR";}
-            case reg_t::HEAP_PTR: {return "HEAP_PTR";}
             case reg_t::EXPR_PTR: {return "EXPR_PTR";}
             case reg_t::RA: {return "RA";}
             case reg_t::RES: {return "RES";}
-            case reg_t::RES_TYPE: {return "RES_TYPE";}
             case reg_t::T1: {return "T1";}
             case reg_t::T2: {return "T2";}
             case reg_t::T3: {return "T3";}
@@ -68,7 +64,6 @@ namespace interpreter {
         type*& reg_as_ptr(size_t indx) {return *(type**)(&reg[indx]);}
 
         int8_t*& stk_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::STK_PTR)]);}
-        int8_t*& heap_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::HEAP_PTR)]);}
         int8_t*& expr_ptr() {return *(int8_t**)(&reg[uint8_t(reg_t::EXPR_PTR)]);}
     };
 }

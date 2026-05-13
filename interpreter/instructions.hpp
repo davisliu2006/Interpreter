@@ -16,6 +16,7 @@ namespace interpreter {
         store_16, load_16, load_16u,
         store_8, load_8, load_8u,
         push_expr, pop_expr,
+        heap_alloc, heap_free,
         syscall
     };
 
@@ -70,6 +71,8 @@ namespace interpreter {
             case inst_t::load_8u: {return "load_8u";}
             case inst_t::push_expr: {return "push_expr";}
             case inst_t::pop_expr: {return "pop_expr";}
+            case inst_t::heap_alloc: {return "heap_alloc";}
+            case inst_t::heap_free: {return "heap_free";}
             case inst_t::syscall: {return "syscall";}
         }
         return "unknown";
@@ -238,11 +241,17 @@ namespace interpreter {
         static inst load_8u(reg_t rd, int32_t imm, reg_t rs1) {
             return inst(inst_t::load_8u, rd, rs1, reg_t::ZERO, imm);
         }
-        static inst push_expr(reg_t rs) {
-            return inst(inst_t::push_expr, reg_t::ZERO, rs, reg_t::ZERO, 0);
+        static inst push_expr(reg_t rs1) {
+            return inst(inst_t::push_expr, reg_t::ZERO, rs1, reg_t::ZERO, 0);
         }
         static inst pop_expr(reg_t rd) {
             return inst(inst_t::pop_expr, rd, reg_t::ZERO, reg_t::ZERO, 0);
+        }
+        static inst heap_alloc(reg_t rd, reg_t rs1) {
+            return inst(inst_t::heap_alloc, rd, rs1, reg_t::ZERO, 0);
+        }
+        static inst heap_free(reg_t rs1) {
+            return inst(inst_t::heap_free, reg_t::ZERO, rs1, reg_t::ZERO, 0);
         }
 
         static bool is_relative_jump(inst_t type) {

@@ -3,6 +3,7 @@
 #include "base.hpp"
 #include "instructions.hpp"
 #include "registers.hpp"
+#include "heap_allocator.hpp"
 
 namespace interpreter {
     struct Architecture {
@@ -10,22 +11,20 @@ namespace interpreter {
         vector<inst> inst_mem;
         vector<int8_t> const_mem;
         vector<int8_t> stack_mem;
-        vector<int8_t> heap_mem;
         vector<int8_t> expr_stack;
         vector<int8_t> syscall_buf;
+        HeapAllocator heap_allocator;
 
         public:
         Registers reg;
         
-        Architecture() {
+        Architecture(): heap_allocator(1024*16) {
             const_mem.resize(1024);
             stack_mem.resize(1024*16);
-            heap_mem.resize(1024*16);
             expr_stack.resize(1024*8);
 
             reg.inst_ptr = inst_mem.data();
             reg.stk_ptr() = stack_mem.data()+stack_mem.size();
-            reg.heap_ptr() = heap_mem.data();
             reg.expr_ptr() = expr_stack.data();
         }
 
@@ -243,6 +242,15 @@ namespace interpreter {
                 case inst_t::pop_expr: {
                     reg[instruction.rd()] = *(int64_t*)(reg.expr_ptr());
                     reg.expr_ptr() -= 8;
+                    break;
+                }
+                case inst_t::heap_alloc: {
+                    int8_t* block = heap_allocator.simple_alloc(reg[instruction.rs1()]);
+                    *(int8_t**)(&reg[instruction.rd()]) = block;
+                    break;
+                }
+                case inst_t::heap_free: {
+                    heap_allocator.simple_free(*(int8_t**)(&reg[instruction.rs1()]));
                     break;
                 }
                 case inst_t::syscall: {

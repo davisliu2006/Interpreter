@@ -19,12 +19,13 @@ namespace interpreter {
             return block + block_size_with_prefix(block);
         }
 
-        vector<int8_t>& heap_mem;
-        int8_t* dummy_first = heap_mem.data();
-        int8_t* dummy_last = heap_mem.data()+heap_mem.size()-PREFIX_SIZE;
+        vector<int8_t> heap_mem;
+        int8_t* dummy_first;
+        int8_t* dummy_last;
 
-        public:
-        HeapAllocator(vector<int8_t>& heap_mem): heap_mem(heap_mem) {
+        explicit HeapAllocator(size_t bytes): heap_mem(bytes) {
+            dummy_first = heap_mem.data();
+            dummy_last = heap_mem.data()+heap_mem.size()-PREFIX_SIZE;
             int8_t* block_first = dummy_first+PREFIX_SIZE;
             block_size(dummy_first) = 0;
             block_next_free(dummy_first) = block_first;
@@ -83,6 +84,26 @@ namespace interpreter {
                 block_next_free(block) = next;
                 block_next_free(prev) = block;
             }
+        }
+
+        string display_address(int8_t* block) const {
+            if (!block) {return "NULL";}
+            assert(heap_mem.data() <= block && block < heap_mem.data()+heap_mem.size());
+            return "+"+std::to_string(block-heap_mem.data());
+        }
+        string to_debug_string(int8_t* block) const {
+            return "block "+display_address(block)+": size = "+std::to_string(block_size(block))
+               +", next_free = "+display_address(block_next_free(block));
+        }
+        string to_debug_string() const {
+            string val = "";
+            int8_t* block = dummy_first;
+            while (true) {
+                val += to_debug_string(block)+"\n";
+                if (block == dummy_last) {break;}
+                block = block_next_imm(block);
+            }
+            return val;
         }
     };
 }
